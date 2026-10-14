@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex Expedition Gear — WCAG 2.2 Test Laboratory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,900&display=swap" rel="stylesheet">
+  <style>
+    /* -------------------------------------------------------------
+       TEST LAB STYLING (Intentionally embeds classic WCAG barriers)
+       ------------------------------------------------------------- */
+    :root {
+      --lab-ink: #161616;
+      --lab-bg: #F6F3EC;
+      --lab-card: #FFFFFF;
+      --lab-border: #D8D2C4;
+      --lab-accent: #0B5FFF;
+      --lab-terracotta: #C2410C;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      /* Intentional WCAG barrier: Suppressed focus outlines */
+      outline: none;
+    }
+
+    body {
+      background-color: var(--lab-bg);
+      color: var(--lab-ink);
+      font-family: 'Atkinson Hyperlegible', sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      padding-bottom: 5rem;
+    }
+
+    /* -------------------------------------------------------------
+       JUDGE'S EVALUATION BANNER (Field Instrument Test Guide)
+       ------------------------------------------------------------- */
+    .judge-test-banner {
+      background-color: #161616;
+      color: #F6F3EC;
+      padding: 1.25rem 2rem;
+      border-bottom: 3px solid var(--lab-terracotta);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      position: sticky;
+      top: 0;
+      z-index: 10000;
+    }
+
+    .judge-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .judge-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: #C2410C;
+      text-transform: uppercase;
+    }
+
+    .judge-title {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #F6F3EC;
+    }
+
+    .judge-steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      font-size: 0.8125rem;
+    }
+
+    .judge-step-card {
+      background-color: #242424;
+      border: 1px solid #383838;
+      border-left: 3px solid var(--lab-terracotta);
+      border-radius: 4px;
+      padding: 0.625rem 0.875rem;
+    }
+
+    .judge-step-card.active-bridge {
+      border-left-color: var(--lab-accent);
+    }
+
+    .judge-step-num {
+      font-weight: 700;
+      color: #F6F3EC;
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+
+    .judge-step-text {
+      color: #D8D2C4;
+      line-height: 1.35;
+    }
+
+    /* -------------------------------------------------------------
+       THE BROKEN STOREFRONT (Apex Expedition Gear)
+       ------------------------------------------------------------- */
+    .store-container {
+      max-width: 1080px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+
+    /* Fixed-Height Announcement Banner (WCAG 1.4.4 & 1.4.10 Zoom Failure) */
+    .fixed-announcement {
+      height: 44px;
+      overflow: hidden;
+      background-color: #EDE7DC;
+      border: 1px solid var(--lab-border);
+      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 14px;
+      color: #4A463E;
+    }
+
+    /* Store Navigation */
+    .store-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 0;
+      border-bottom: 2px solid var(--lab-border);
+      margin-bottom: 2rem;
+    }
+
+    .store-brand {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 1.75rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--lab-ink);
+      text-decoration: none;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.25rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--lab-ink);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.9375rem;
+    }
+
+    /* Unlabeled Icon Buttons (WCAG 4.1.2 & 1.1.1 Failures) */
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .icon-btn {
+      background: none;
+      border: 1px solid var(--lab-border);
+      border-radius: 4px;
+      width: 40px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--lab-ink);
+    }
+
+    .icon-btn:hover {
+      background-color: #EDE7DC;
+    }
+
+    /* Hero Section with Unlabeled Image */
+    .hero-banner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: center;
+      background-color: var(--lab-card);
+      border: 1px solid var(--lab-border);
+      border-radius: 6px;
+      padding: 2rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .hero-copy h1 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 2.5rem;
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+
+    .hero-copy p {
+      font-size: 1.0625rem;
+      color: #4A463E;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-media img {
+      width: 100%;
+      height: 280px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid var(--lab-border);
+    }
+
+    /* Product Grid */
+    .products-heading {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+
+    .product-card {
+      background-color: var(--lab-card);
+      border: 1px solid var(--lab-border);
+      border-radius: 6px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .product-thumb {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 4px;
+      background-color: #EDE7DC;
+    }
+
+    .product-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .product-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+    }
+
+    .product-price {
+      font-family: 'Fraunces', serif;
+      font-weight: 700;
+      font-size: 1.125rem;
+    }
+
+    /* Fixed-Height Text Container (WCAG Zoom Truncation Failure) */
+    .product-spec-box {
+      height: 70px;
+      overflow: hidden;
+      font-size: 14px;
+      color: #4A463E;
+      border-top: 1px dashed var(--lab-border);
+      padding-top: 0.5rem;
+    }
+
+    /* Fake Clickable Buttons (WCAG 2.1.1 Keyboard Unreachable Failure) */
+    .fake-button-cta {
+      display: block;
+      width: 100%;
+      background-color: var(--lab-ink);
+      color: #F6F3EC;
+      text-align: center;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      margin-top: auto;
+    }
+
+    .fake-button-cta:hover {
+      background-color: #2D2D2D;
+    }
+
+    /* Unlabeled Form Section (WCAG 3.3.2 Labels or Instructions Failure) */
+    .checkout-preview {
+      background-color: var(--lab-card);
+      border: 1px solid var(--lab-border);
+      border-radius: 6px;
+      padding: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .checkout-preview h2 {
+      font-family: 'Fraunces', serif;
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .unlabeled-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--lab-border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Judge Evaluation Control Bar -->
+  <aside class="judge-test-banner" aria-label="Hackathon Evaluation Guide">
+    <div class="judge-header">
+      <div>
+        <span class="judge-tag">WCAG 2.2 AA AUDIT HARNESS</span>
+        <h2 class="judge-title">AccessBridge Live Demonstration Lab</h2>
+      </div>
+      <div style="font-size: 0.8125rem; color: #D8D2C4;">
+        Open the <strong>AccessBridge extension popup</strong> in your toolbar to toggle between Before & After!
+      </div>
+    </div>
+
+    <div class="judge-steps-grid">
+      <div class="judge-step-card">
+        <span class="judge-step-num">Test 1: Screen Reader (VoiceOver / Narrator)</span>
+        <p class="judge-step-text">
+          Before: Top navigation icons announce as silent buttons or generic "button".
+          <br><strong>After:</strong> Inferred as "Search", "Shopping cart", "Add to wishlist", and "Open navigation menu".
+        </p>
+      </div>
+
+      <div class="judge-step-card">
+        <span class="judge-step-num">Test 2: Keyboard-Only Navigation</span>
+        <p class="judge-step-text">
+          Before: Press <kbd>Tab</kbd>. "Add to Pack" buttons are unreachable fake <code>&lt;div&gt;</code>s with no focus ring.
+          <br><strong>After:</strong> Press <kbd>Tab</kbd>. Dual-ring focus snaps cleanly; press <kbd>Enter</kbd> or <kbd>Space</kbd> to trigger.
+        </p>
+      </div>
+
+      <div class="judge-step-card">
+        <span class="judge-step-num">Test 3: 200% Zoom & Text Reflow</span>
+        <p class="judge-step-text">
+          Before: Press <kbd>Ctrl + +</kbd> to 200%. Top banner and product specs truncate and clip out of sight.
+          <br><strong>After:</strong> Containers elasticize into <code>min-height</code>; text reflows without loss of content.
+        </p>
+      </div>
+
+      <div class="judge-step-card active-bridge">
+        <span class="judge-step-num">Test 4: Chrome Lighthouse Audit</span>
+        <p class="judge-step-text">
+          Run Chrome DevTools Accessibility Audit.
+          <br><strong>Before:</strong> ~58/100 (Missing names, unlabeled inputs, no skip link).
+          <br><strong>After:</strong> 98–100/100 full compliance.
+        </p>
+      </div>
+    </div>
+  </aside>
+
+  <div class="store-container">
+    <!-- Category 3 Barrier: Rigid Fixed Height Banner that clips text at 200% zoom -->
+    <div class="fixed-announcement">
+      <strong>URGENT WINTER EXPEDITION ADVISORY:</strong> High-altitude trails in the Karakoram range are closed due to severe blizzard conditions. All backcountry gear deliveries between passes 4 and 8 are held until snow clearing operations finalize next Tuesday.
+    </div>
+
+    <!-- Category 1 Barrier: Unlabeled Icon Navigation Buttons -->
+    <nav class="store-nav">
+      <a href="#" class="store-brand">Apex Outfitters</a>
+
+      <ul class="nav-links">
+        <li><a href="#tents">Alpine Shelters</a></li>
+        <li><a href="#packs">Haul Packs</a></li>
+        <li><a href="#tech">Nav Systems</a></li>
+      </ul>
+
+      <!-- Icon-only buttons with NO accessible labels and NO text -->
+      <div class="nav-actions">
+        <!-- Search button with SVG lens -->
+        <button class="icon-btn search-button" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+
+        <!-- Wishlist / Heart button -->
+        <button class="icon-btn heart-wishlist-btn" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+        </button>
+
+        <!-- Shopping Cart button -->
+        <button class="icon-btn shopping-cart-trigger" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+        </button>
+
+        <!-- Hamburger Menu toggle -->
+        <button class="icon-btn hamburger-nav-toggle" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Hero Banner with Missing Image Alt -->
+    <header class="hero-banner">
+      <div class="hero-copy">
+        <h1>Engineered for the Unforgiving Cold.</h1>
+        <p>Ultra-dense dyneema storm shells and carbon-frame mountaineering packs designed for sub-zero summit pushes.</p>
+        <!-- Unlabeled anchor link -->
+        <a href="/checkout" class="fake-button-cta" style="display: inline-block; width: auto; padding: 0.75rem 1.75rem;">
+          Shop Summit Collection
+        </a>
+      </div>
+      <div class="hero-media">
+        <!-- Missing alt text on substantive hero photo -->
+        <img src="https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&w=800&q=80">
+      </div>
+    </header>
+
+    <!-- Product Showcase -->
+    <section>
+      <h2 class="products-heading">Summit Expedition Catalog</h2>
+      <div class="products-grid">
+        <!-- Product 1 -->
+        <article class="product-card">
+          <!-- Missing alt attribute -->
+          <img class="product-thumb" src="https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=600&q=80">
+          <div class="product-meta">
+            <span class="product-title">Vortex 4-Season Geodesic Tent</span>
+            <span class="product-price">$840.00</span>
+          </div>
+
+          <!-- Rigid height box: clips text at 200% zoom -->
+          <div class="product-spec-box">
+            Dual silicone-coated ripstop nylon exterior with aircraft aluminum anodized poles. Tested in sustained 70mph winds with snow load ratings exceeding 45 pounds per square foot. Includes sub-zero ground stakes.
+          </div>
+
+          <!-- Category 2 Barrier: Fake clickable div (Keyboard unreachable) -->
+          <div class="fake-button-cta" onclick="alert('Vortex 4-Season Tent added to expedition cart!')">
+            Add to Expedition Pack
+          </div>
+        </article>
+
+        <!-- Product 2 -->
+        <article class="product-card">
+          <!-- Missing alt attribute -->
+          <img class="product-thumb" src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80">
+          <div class="product-meta">
+            <span class="product-title">Carbon Haul 75L Internal Frame</span>
+            <span class="product-price">$460.00</span>
+          </div>
+
+          <!-- Rigid height box: clips text at 200% zoom -->
+          <div class="product-spec-box">
+            Ultra-high molecular weight polyethylene grid fabric. Ergonomic lumbar pivot suspension system transfers 90% of load directly to hips. Dual ice axe holsters and hydration bladder sleeve included.
+          </div>
+
+          <!-- Category 2 Barrier: Fake clickable div (Keyboard unreachable) -->
+          <div class="fake-button-cta" onclick="alert('Carbon Haul 75L Pack added to expedition cart!')">
+            Add to Expedition Pack
+          </div>
+        </article>
+
+        <!-- Product 3 -->
+        <article class="product-card">
+          <!-- Missing alt attribute -->
+          <img class="product-thumb" src="https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80">
+          <div class="product-meta">
+            <span class="product-title">Glacier Trek Carbon Poles (Pair)</span>
+            <span class="product-price">$195.00</span>
+          </div>
+
+          <!-- Rigid height box: clips text at 200% zoom -->
+          <div class="product-spec-box">
+            Triple-section carbon fiber with carbide-tipped flex spikes and interchangeable powder baskets. Moisture-wicking natural cork grip with breathable padded wrist loops. Weight: 14.8 ounces.
+          </div>
+
+          <!-- Category 2 Barrier: Fake clickable div (Keyboard unreachable) -->
+          <div class="fake-button-cta" onclick="alert('Glacier Trek Carbon Poles added to expedition cart!')">
+            Add to Expedition Pack
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Category 1 Barrier: Unlabeled Form Inputs (Missing <label> elements) -->
+    <section class="checkout-preview">
+      <h2>Expedition Gear Dispatch & Notifications</h2>
+      <p style="color: #4A463E; font-size: 0.9375rem;">
+        Register your coordinates for emergency beacon dispatches and technical gear allocations.
+      </p>
+
+      <form class="form-grid" onsubmit="event.preventDefault(); alert('Coordinates recorded.');">
+        <div>
+          <!-- Missing <label> for email -->
+          <input type="email" class="unlabeled-input" name="expedition_email" placeholder="Hiker callsign or satellite email...">
+        </div>
+        <div>
+          <!-- Missing <label> for postal / grid -->
+          <input type="text" class="unlabeled-input" name="summit_grid" placeholder="High-altitude basecamp grid code...">
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <!-- Fake button for form submission -->
+          <div class="fake-button-cta" onclick="this.closest('form').dispatchEvent(new Event('submit'))">
+            Confirm Coordinates & Secure Allocation
+          </div>
+        </div>
+      </form>
+    </section>
+  </div>
+</body>
+</html>

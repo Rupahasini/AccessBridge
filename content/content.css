@@ -1,0 +1,104 @@
+/**
+ * AccessBridge — Content Stylesheet
+ * Injected into active pages to provide high-contrast skip links,
+ * WCAG 2.2 focus appearance rings, and visual diagnostic badges.
+ */
+
+/* 1. Skip to Main Content Landmark Link */
+.accessbridge-skip-link {
+  position: fixed !important;
+  top: -120px !important;
+  left: 1rem !important;
+  z-index: 2147483647 !important;
+  background-color: #161616 !important;
+  color: #F6F3EC !important;
+  font-family: 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  line-height: 1.5 !important;
+  padding: 0.75rem 1.25rem !important;
+  border: 2px solid #0B5FFF !important;
+  border-radius: 4px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  text-decoration: underline !important;
+  text-underline-offset: 4px !important;
+  outline: none !important;
+  transition: top 0.15s ease-in-out !important;
+}
+
+.accessbridge-skip-link:focus,
+.accessbridge-skip-link:focus-visible {
+  top: 1rem !important;
+  outline: 3px solid #0B5FFF !important;
+  outline-offset: 3px !important;
+}
+
+/* 2. Accessible Screen Reader Only Live Region */
+.accessbridge-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* 3. WCAG 2.2 AA Focus Appearance (SC 2.4.11 & 2.4.13) Dual-Ring System */
+:focus-visible,
+[data-ab-repaired]:focus-visible {
+  outline: 3px solid #0B5FFF !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 5px rgba(22, 22, 22, 0.85) !important;
+}
+
+/* 4. Visual Diagnostic Highlight Mode (when toggled on by user) */
+.accessbridge-highlights-active [data-ab-repaired^="aria-"] {
+  outline: 2px dashed #C2410C !important;
+  outline-offset: 2px !important;
+  position: relative !important;
+}
+
+.accessbridge-highlights-active [data-ab-repaired="focus-clickable"] {
+  outline: 2px dashed #0B5FFF !important;
+  outline-offset: 2px !important;
+  position: relative !important;
+}
+
+.accessbridge-highlights-active [data-ab-repaired="layout-elastic"] {
+  outline: 2px dashed #D97706 !important;
+  outline-offset: 1px !important;
+  position: relative !important;
+}
+
+/* Diagnostic Badge Tooltips on Hover/Focus */
+.accessbridge-highlights-active [data-ab-badge]:hover::after,
+.accessbridge-highlights-active [data-ab-badge]:focus-visible::after {
+  content: attr(data-ab-badge) !important;
+  position: absolute !important;
+  bottom: 100% !important;
+  left: 0 !important;
+  transform: translateY(-4px) !important;
+  z-index: 2147483646 !important;
+  background-color: #161616 !important;
+  color: #F6F3EC !important;
+  font-family: 'Atkinson Hyperlegible', monospace, sans-serif !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  padding: 0.25rem 0.5rem !important;
+  border-radius: 3px !important;
+  border: 1px solid #D8D2C4 !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* 5. Reduced Motion Accommodations */
+@media (prefers-reduced-motion: reduce) {
+  .accessbridge-skip-link {
+    transition: none !important;
+  }
+}

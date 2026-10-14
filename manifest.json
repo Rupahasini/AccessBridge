@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "AccessBridge — Real-Time WCAG Remediation",
+  "short_name": "AccessBridge",
+  "version": "1.0.0",
+  "description": "Manifest V3 real-time accessibility repair engine. Infers semantic ARIA labels, unblocks keyboard focus, and elasticizes rigid layouts for WCAG 2.2 AA compliance.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "AccessBridge Instrument Controller"
+  },
+  "options_page": "options/options.html",
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content/content.css"],
+      "js": [
+        "content/modules/semantic-aria-fixer.js",
+        "content/modules/focus-tree-rebuilder.js",
+        "content/modules/layout-elasticizer.js",
+        "content/modules/visual-highlighter.js",
+        "content/core-engine.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*",
+        "demo.html"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

@@ -1,0 +1,439 @@
+/**
+ * AccessBridge — Options Stylesheet
+ * Field Instrument Calibration Interface:
+ * Compliant with WCAG 2.2 AA contrast, keyboard accessibility, and 200% zoom reflow.
+ */
+
+:root {
+  --bg-parchment: #F6F3EC;
+  --bg-parchment-deep: #EDE7DC;
+  --bg-card: #FAF8F3;
+  --text-ink: #161616;
+  --text-muted: #4A463E;
+  --border-hairline: #D8D2C4;
+  --border-strong: #9C9484;
+  
+  --accent-terracotta: #C2410C;
+  --accent-cobalt: #0B5FFF;
+  --accent-success: #15803D;
+  --accent-danger: #B91C1C;
+  
+  --font-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Atkinson Hyperlegible', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-parchment);
+  color: var(--text-ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding: 2.5rem 1.5rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 0.1875rem solid var(--accent-cobalt);
+  outline-offset: 0.125rem;
+  box-shadow: 0 0 0 0.3125rem rgba(22, 22, 22, 0.85);
+}
+
+.options-container {
+  max-width: 48rem; /* 768px */
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Header */
+.options-header {
+  border-bottom: 0.125rem solid var(--border-hairline);
+  padding-bottom: 1.5rem;
+}
+
+.header-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.header-title {
+  font-family: var(--font-serif);
+  font-size: 2.5rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--text-ink);
+}
+
+.header-description {
+  font-size: 1.0625rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  max-width: 42rem;
+}
+
+/* Main Cards */
+.options-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.instrument-card {
+  background-color: var(--bg-card);
+  border: 0.0625rem solid var(--border-hairline);
+  border-radius: 0.375rem;
+  padding: 1.5rem;
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.03);
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 0.0625rem solid var(--border-hairline);
+  padding-bottom: 1rem;
+}
+
+.section-badge {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 900;
+  color: var(--accent-cobalt);
+  background-color: var(--bg-parchment-deep);
+  border: 0.0625rem solid var(--border-hairline);
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.card-title {
+  font-family: var(--font-serif);
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--text-ink);
+  line-height: 1.2;
+}
+
+.card-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* Form Controls */
+.card-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.form-label {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-ink);
+}
+
+.label-hint {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 0.25rem;
+}
+
+.field-help {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.field-help a {
+  color: var(--accent-cobalt);
+  text-decoration: underline;
+}
+
+.input-with-button {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.text-input,
+.select-input {
+  flex-grow: 1;
+  padding: 0.625rem 0.875rem;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  color: var(--text-ink);
+  background-color: #FFFFFF;
+  border: 0.0625rem solid var(--border-strong);
+  border-radius: 0.25rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.btn-primary {
+  background-color: var(--text-ink);
+  color: var(--bg-parchment);
+  border: 0.0625rem solid var(--text-ink);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.625rem 1.125rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #2D2D2D;
+}
+
+.btn-secondary {
+  background-color: #FFFFFF;
+  color: var(--text-ink);
+  border: 0.0625rem solid var(--border-strong);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.625rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-parchment-deep);
+}
+
+.btn-danger {
+  background-color: #FFFFFF;
+  color: var(--accent-danger);
+  border: 0.0625rem solid var(--accent-danger);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.625rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background-color: #FEE2E2;
+}
+
+/* Status Banner */
+.status-banner {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.status-banner.is-success {
+  background-color: #DCFCE7;
+  color: #14532D;
+  border: 0.0625rem solid #86EFAC;
+}
+
+.status-banner.is-error {
+  background-color: #FEE2E2;
+  color: #7F1D1D;
+  border: 0.0625rem solid #FCA5A5;
+}
+
+/* Domain Manager */
+.domain-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.domain-input-row {
+  display: flex;
+  gap: 0.625rem;
+}
+
+.domains-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.domain-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.875rem;
+  background-color: #FFFFFF;
+  border: 0.0625rem solid var(--border-hairline);
+  border-radius: 0.25rem;
+}
+
+.domain-name {
+  font-weight: 700;
+  color: var(--text-ink);
+}
+
+.domain-remove-btn {
+  background: none;
+  border: none;
+  color: var(--accent-terracotta);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.1875rem;
+}
+
+.domain-remove-btn:hover {
+  text-decoration: underline;
+}
+
+.empty-domain-notice {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
+/* Engines Stack */
+.engines-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.engine-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: #FFFFFF;
+  border: 0.0625rem solid var(--border-hairline);
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.native-checkbox {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.1875rem;
+  accent-color: var(--accent-cobalt);
+  cursor: pointer;
+}
+
+.engine-desc {
+  display: flex;
+  flex-direction: column;
+}
+
+.engine-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-ink);
+}
+
+.engine-sub {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* Privacy Guarantee Card */
+.privacy-card {
+  background-color: var(--bg-parchment-deep);
+  border: 0.0625rem solid var(--border-hairline);
+  border-left: 0.3125rem solid var(--accent-terracotta);
+  border-radius: 0.25rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.privacy-title {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-ink);
+  margin-bottom: 0.375rem;
+}
+
+.privacy-copy {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.code-tag {
+  background-color: #FFFFFF;
+  border: 0.0625rem solid var(--border-hairline);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.1875rem;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  color: var(--text-ink);
+}
+
+/* Footer */
+.options-footer {
+  border-top: 0.0625rem solid var(--border-hairline);
+  padding-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.footer-anchor {
+  color: var(--text-ink);
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-decoration: underline;
+}
+
+.footer-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AccessBridge — Calibration & Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <!-- Header -->
+    <header class="options-header">
+      <div class="header-tag">INSTRUMENT CALIBRATION SPECIFICATION</div>
+      <h1 class="header-title">AccessBridge Settings</h1>
+      <p class="header-description">
+        Configure multimodal vision models, domain automation rules, and modular remediation parameters for real-time WCAG 2.2 AA parity.
+      </p>
+    </header>
+
+    <main class="options-main">
+      <!-- Section 1: Gemini API Configuration -->
+      <section class="instrument-card" aria-labelledby="gemini-heading">
+        <div class="card-header">
+          <div class="section-badge">01</div>
+          <div>
+            <h2 id="gemini-heading" class="card-title">Multimodal Vision Subsystem (Gemini API)</h2>
+            <p class="card-subtitle">
+              Optional neural enhancement. When configured, substantive images without captions are described using Google Gemini. Unlabeled buttons and icons are always remediated instantly by local deterministic heuristics.
+            </p>
+          </div>
+        </div>
+
+        <form id="gemini-form" class="card-form" onsubmit="return false;">
+          <div class="form-group">
+            <label for="gemini-api-key" class="form-label">
+              Gemini API Key
+              <span class="label-hint">(Stored securely in local Chrome storage)</span>
+            </label>
+            <div class="input-with-button">
+              <input type="password" 
+                     id="gemini-api-key" 
+                     class="text-input" 
+                     placeholder="AIzaSy..." 
+                     autocomplete="off"
+                     spellcheck="false">
+              <button type="button" id="btn-toggle-visibility" class="btn-secondary" aria-label="Show API key in plain text">Show</button>
+            </div>
+            <p class="field-help">
+              Don’t have a key? Acquire one free at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="gemini-model-select" class="form-label">Multimodal Vision Model</label>
+            <select id="gemini-model-select" class="select-input">
+              <option value="gemini-2.0-flash" selected>Gemini 2.0 Flash (Recommended: Ultra-fast, low-latency multimodal)</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash (Standard multimodal fallback)</option>
+            </select>
+          </div>
+
+          <div class="button-row">
+            <button type="button" id="btn-test-connection" class="btn-secondary">Test Connection</button>
+            <button type="button" id="btn-save-gemini" class="btn-primary">Save Key</button>
+            <button type="button" id="btn-clear-gemini" class="btn-danger">Clear Key</button>
+          </div>
+
+          <!-- Connection Status Feedback -->
+          <div id="connection-status" class="status-banner" role="status" aria-live="polite" hidden></div>
+        </form>
+      </section>
+
+      <!-- Section 2: Automation & Whitelist -->
+      <section class="instrument-card" aria-labelledby="domains-heading">
+        <div class="card-header">
+          <div class="section-badge">02</div>
+          <div>
+            <h2 id="domains-heading" class="card-title">Automated Site Remediation</h2>
+            <p class="card-subtitle">
+              Sites listed below automatically engage AccessBridge upon page load without requiring manual toggle actuation.
+            </p>
+          </div>
+        </div>
+
+        <div class="domain-manager">
+          <div class="domain-input-row">
+            <label for="new-domain-input" class="sr-only">New domain to auto-remediate</label>
+            <input type="text" id="new-domain-input" class="text-input" placeholder="e.g. broken-store.com">
+            <button type="button" id="btn-add-domain" class="btn-secondary">Add Domain</button>
+          </div>
+
+          <ul id="domains-list" class="domains-list" aria-label="Configured auto-remediate domains">
+            <!-- Populated via options.js -->
+          </ul>
+        </div>
+      </section>
+
+      <!-- Section 3: Engine Calibration Modules -->
+      <section class="instrument-card" aria-labelledby="engines-heading">
+        <div class="card-header">
+          <div class="section-badge">03</div>
+          <div>
+            <h2 id="engines-heading" class="card-title">Remediation Subsystem Gates</h2>
+            <p class="card-subtitle">
+              Enable or selectively bypass individual remediation pipelines.
+            </p>
+          </div>
+        </div>
+
+        <div class="engines-stack">
+          <label class="engine-checkbox-row">
+            <input type="checkbox" id="gate-aria" checked class="native-checkbox">
+            <div class="engine-desc">
+              <span class="engine-name">Semantic & ARIA Fixer</span>
+              <span class="engine-sub">Infere accessible names for unlabeled buttons, icon controls, and missing alt text.</span>
+            </div>
+          </label>
+
+          <label class="engine-checkbox-row">
+            <input type="checkbox" id="gate-focus" checked class="native-checkbox">
+            <div class="engine-desc">
+              <span class="engine-name">Focus Tree Rebuilder</span>
+              <span class="engine-sub">Transforms unreachable clickables to keyboard buttons and injects Skip Links.</span>
+            </div>
+          </label>
+
+          <label class="engine-checkbox-row">
+            <input type="checkbox" id="gate-layout" checked class="native-checkbox">
+            <div class="engine-desc">
+              <span class="engine-name">Layout Elasticizer</span>
+              <span class="engine-sub">Frees rigid fixed-height containers to allow 200% zoom and fluid text reflow.</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Privacy Pledge -->
+      <section class="privacy-card" aria-labelledby="privacy-heading">
+        <h2 id="privacy-heading" class="privacy-title">Architectural Privacy Guarantee</h2>
+        <p class="privacy-copy">
+          AccessBridge is engineered for sovereign on-device computation. DOM parsing, keyboard focus unblocking, and layout elasticity occur strictly within your browser’s local execution context. The Gemini API is invoked solely for substantive images when configured by the user. Form entries, password inputs (<code class="code-tag">type="password"</code>), and payment attributes are structurally blacklisted and never read or transmitted.
+        </p>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="options-footer">
+      <div class="footer-links">
+        <button type="button" id="btn-footer-demo" class="btn-secondary">Open Test Lab</button>
+        <a href="https://www.w3.org/TR/WCAG22/" target="_blank" rel="noopener noreferrer" class="footer-anchor">WCAG 2.2 Recommendation ↗</a>
+      </div>
+      <p class="footer-meta">AccessBridge Manifest V3 Edition • Engineered for Digital Equity</p>
+    </footer>
+
+    <!-- Polite Live Region -->
+    <div id="options-announcer" class="sr-only" aria-live="polite"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
