@@ -9,10 +9,10 @@
 
 Experience AccessBridge immediately in your browser with zero build steps, no browser extension, and no API keys required:
 
-* 🚀 **[Live Demo Storefront (`demo.html`)](https://rupak-h.github.io/AccessBridge/demo.html)**  
+* 🚀 **[Live Demo Storefront (`demo.html`)](https://rupahasini.github.io/AccessBridge/demo.html)**  
   Full e-commerce test harness embedded with classic WCAG 2.2 AA barriers. Features a visible **"Fix this page"** button, a **Before / After** state toggle, diagnostic overlay badges, and a live barrier audit report.
 
-* 📋 **[Standalone HTML Scanner Playground (`paste.html`)](https://rupak-h.github.io/AccessBridge/paste.html)**  
+* 📋 **[Standalone HTML Scanner Playground (`paste.html`)](https://rupahasini.github.io/AccessBridge/paste.html)**  
   Interactive accessibility workbench. Paste any custom HTML snippet, preview it inside a sandboxed iframe, click **"Scan & fix"**, inspect the live barrier report, and copy clean remediated markup.
 
 > **GitHub Pages Ready**: All web application pages (`demo.html`, `paste.html`) are self-contained, statically served over plain HTTPS, and completely immune to `localStorage` errors or cross-origin restrictions.
@@ -112,7 +112,7 @@ AccessBridge rejects generic corporate SaaS styling in favor of a **calm, tactil
 AccessBridge comes with a built-in test laboratory (`demo.html`) reproducing classic WCAG 2.2 AA failures on an outdoor gear storefront.
 
 ### Opening the Test Lab
-* Visit the **[Live Demo Storefront](https://rupak-h.github.io/AccessBridge/demo.html)** in any browser, or open `demo.html` locally.
+* Visit the **[Live Demo Storefront](https://rupahasini.github.io/AccessBridge/demo.html)** in any browser, or open `demo.html` locally.
 
 ---
 
