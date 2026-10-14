@@ -14,10 +14,10 @@ window.AccessBridgeModules.VisualHighlighter = (function() {
   /**
    * Applies or updates badge markers on all repaired elements
    */
-  function refresh() {
-    if (!highlightsActive) return;
+  function refresh(doc = document) {
+    if (!highlightsActive || !doc) return;
 
-    const repaired = document.querySelectorAll('[data-ab-repaired]');
+    const repaired = doc.querySelectorAll('[data-ab-repaired]');
     repaired.forEach(el => {
       const type = el.dataset.abRepaired;
       let badgeText = '';
@@ -27,6 +27,8 @@ window.AccessBridgeModules.VisualHighlighter = (function() {
         badgeText = `ARIA: "${name.length > 25 ? name.slice(0, 22) + '...' : name}"`;
       } else if (type === 'focus-clickable') {
         badgeText = 'Keyboard: Tab + Enter/Space';
+      } else if (type === 'focus-skip-link') {
+        badgeText = 'Skip Link: Landmark Bypass';
       } else if (type === 'layout-elastic') {
         badgeText = 'Layout: Elastic Reflow';
       }
@@ -38,31 +40,37 @@ window.AccessBridgeModules.VisualHighlighter = (function() {
   /**
    * Enables visual diagnostic outlines
    */
-  function enable() {
+  function enable(doc = document) {
     highlightsActive = true;
-    document.documentElement.classList.add('accessbridge-highlights-active');
-    refresh();
+    if (doc?.documentElement?.classList) {
+      doc.documentElement.classList.add('accessbridge-highlights-active');
+    }
+    refresh(doc);
   }
 
   /**
    * Disables visual diagnostic outlines
    */
-  function disable() {
+  function disable(doc = document) {
     highlightsActive = false;
-    document.documentElement.classList.remove('accessbridge-highlights-active');
-    const elementsWithBadges = document.querySelectorAll('[data-ab-badge]');
-    elementsWithBadges.forEach(el => el.removeAttribute('data-ab-badge'));
+    if (doc?.documentElement?.classList) {
+      doc.documentElement.classList.remove('accessbridge-highlights-active');
+    }
+    if (doc) {
+      const elementsWithBadges = doc.querySelectorAll('[data-ab-badge]');
+      elementsWithBadges.forEach(el => el.removeAttribute('data-ab-badge'));
+    }
   }
 
   /**
    * Toggles highlight state
    */
-  function toggle(forcedState) {
+  function toggle(forcedState, doc = document) {
     const nextState = typeof forcedState === 'boolean' ? forcedState : !highlightsActive;
     if (nextState) {
-      enable();
+      enable(doc);
     } else {
-      disable();
+      disable(doc);
     }
     return nextState;
   }

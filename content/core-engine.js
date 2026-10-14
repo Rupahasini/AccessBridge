@@ -2,7 +2,7 @@
  * AccessBridge — Core Engine Orchestrator
  * Coordinates Semantic & ARIA Fixer, Focus Tree Rebuilder, Layout Elasticizer,
  * and Visual Highlighter. Manages live MutationObserver, Before/After states,
- * and extension popup messaging.
+ * extension popup messaging, and standalone web-app invocation.
  */
 
 (function() {
@@ -29,7 +29,9 @@
       layoutCount: 0,
       totalCount: 0
     },
-    domain: window.location.hostname || 'local',
+    issues: [],
+    lastReport: [],
+    domain: (typeof window !== 'undefined' && window.location?.hostname) || 'local',
     autoFixThisDomain: false,
     hasGeminiKey: false
   };
@@ -41,19 +43,20 @@
   /**
    * Initializes screen reader polite announcement region
    */
-  function setupAnnouncer() {
-    if (liveAnnouncer) return;
-    liveAnnouncer = document.createElement('div');
+  function setupAnnouncer(doc = document) {
+    if (liveAnnouncer || !doc || !doc.body) return;
+    liveAnnouncer = doc.createElement('div');
     liveAnnouncer.id = 'accessbridge-live-announcer';
     liveAnnouncer.setAttribute('role', 'status');
     liveAnnouncer.setAttribute('aria-live', 'polite');
     liveAnnouncer.setAttribute('aria-atomic', 'true');
     liveAnnouncer.className = 'accessbridge-sr-only';
-    document.body.appendChild(liveAnnouncer);
+    liveAnnouncer.dataset.abIgnore = 'true';
+    doc.body.appendChild(liveAnnouncer);
   }
 
-  function announce(text) {
-    if (!liveAnnouncer) setupAnnouncer();
+  function announce(text, doc = document) {
+    if (!liveAnnouncer) setupAnnouncer(doc);
     if (liveAnnouncer) {
       liveAnnouncer.textContent = '';
       setTimeout(() => {
@@ -62,38 +65,64 @@
     }
   }
 
+  function dispatchStateChange() {
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      try {
+        window.dispatchEvent(new CustomEvent('accessbridge-state-change', {
+          detail: {
+            ...state,
+            stats: { ...state.stats },
+            issues: [...state.issues],
+            lastReport: [...state.lastReport]
+          }
+        }));
+      } catch (_) {}
+    }
+  }
+
   /**
    * Runs all remediation modules
    */
-  async function runRepairs() {
-    // Check if Gemini key is available in sync storage
+  async function runRepairs(options = {}) {
+    const doc = options.doc || document;
+
+    // Check if Gemini key is available in sync storage (Chrome extension mode)
     let useGemini = false;
     try {
-      const syncData = await chrome.storage.sync.get(['geminiApiKey', 'highlightRepairs']);
-      useGemini = Boolean(syncData.geminiApiKey?.trim());
-      state.hasGeminiKey = useGemini;
-      if (syncData.highlightRepairs && !state.highlightsActive) {
-        state.highlightsActive = true;
-        VisualHighlighter?.enable();
+      if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
+        const syncData = await chrome.storage.sync.get(['geminiApiKey', 'highlightRepairs']);
+        useGemini = Boolean(syncData.geminiApiKey?.trim());
+        state.hasGeminiKey = useGemini;
+        if (syncData.highlightRepairs && !state.highlightsActive) {
+          state.highlightsActive = true;
+          VisualHighlighter?.enable(doc);
+        }
       }
     } catch (_) {}
 
     // Execute modular repair suites
-    const ariaResult = SemanticAriaFixer?.repair({ useGemini }) || { count: 0 };
-    const focusResult = FocusTreeRebuilder?.repair() || { count: 0 };
-    const layoutResult = LayoutElasticizer?.repair() || { count: 0 };
+    const ariaResult = SemanticAriaFixer?.repair({ useGemini, doc }) || { count: 0, modified: [] };
+    const focusResult = FocusTreeRebuilder?.repair({ doc }) || { count: 0, modified: [] };
+    const layoutResult = LayoutElasticizer?.repair({ doc }) || { count: 0, modified: [] };
 
-    state.stats.ariaCount = ariaResult.count;
-    state.stats.focusCount = focusResult.count;
-    state.stats.layoutCount = layoutResult.count;
-    state.stats.totalCount = ariaResult.count + focusResult.count + layoutResult.count;
+    state.stats.ariaCount = ariaResult.count || 0;
+    state.stats.focusCount = focusResult.count || 0;
+    state.stats.layoutCount = layoutResult.count || 0;
+    state.stats.totalCount = state.stats.ariaCount + state.stats.focusCount + state.stats.layoutCount;
+
+    state.issues = [
+      ...(focusResult.modified || []),
+      ...(ariaResult.modified || []),
+      ...(layoutResult.modified || [])
+    ];
+    state.lastReport = [...state.issues];
 
     if (state.highlightsActive) {
-      VisualHighlighter?.refresh();
+      VisualHighlighter?.refresh(doc);
     }
 
-    // Notify background service worker to update action badge
-    if (chrome.runtime?.sendMessage) {
+    // Notify background service worker to update action badge if in extension context
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
       chrome.runtime.sendMessage({
         type: 'UPDATE_BADGE',
         payload: {
@@ -103,25 +132,29 @@
       }).catch(() => {});
     }
 
+    dispatchStateChange();
     return state.stats;
   }
 
   /**
    * Reverts all DOM modifications (Before Mode)
    */
-  function revertRepairs() {
-    VisualHighlighter?.disable();
-    SemanticAriaFixer?.revert();
-    FocusTreeRebuilder?.revert();
-    LayoutElasticizer?.revert();
+  function revertRepairs(options = {}) {
+    const doc = options.doc || document;
+
+    VisualHighlighter?.disable(doc);
+    SemanticAriaFixer?.revert({ doc });
+    FocusTreeRebuilder?.revert({ doc });
+    LayoutElasticizer?.revert({ doc });
 
     state.stats.ariaCount = 0;
     state.stats.focusCount = 0;
     state.stats.layoutCount = 0;
     state.stats.totalCount = 0;
+    state.issues = [];
 
-    // Reset badge
-    if (chrome.runtime?.sendMessage) {
+    // Reset badge if in extension context
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
       chrome.runtime.sendMessage({
         type: 'UPDATE_BADGE',
         payload: {
@@ -130,6 +163,8 @@
         }
       }).catch(() => {});
     }
+
+    dispatchStateChange();
   }
 
   /**
@@ -143,6 +178,7 @@
     for (const m of mutations) {
       if (m.target?.id?.startsWith('accessbridge-') ||
           m.target?.dataset?.abRepaired ||
+          m.target?.closest?.('[data-ab-ignore]') ||
           m.attributeName?.startsWith('data-ab-')) {
         isSelfMutation = true;
         break;
@@ -156,10 +192,10 @@
     }, 250);
   }
 
-  function startObserver() {
-    if (mutationObserver) return;
+  function startObserver(doc = document) {
+    if (mutationObserver || !doc || !doc.body || typeof MutationObserver === 'undefined') return;
     mutationObserver = new MutationObserver(handleMutations);
-    mutationObserver.observe(document.body, {
+    mutationObserver.observe(doc.body, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -178,34 +214,38 @@
   /**
    * Master Before / After activation toggle
    */
-  async function setActive(shouldBeActive) {
-    state.active = shouldBeActive;
+  async function setActive(shouldBeActive, options = {}) {
+    const doc = options.doc || document;
+    state.active = Boolean(shouldBeActive);
 
     if (state.active) {
-      startObserver();
-      await runRepairs();
-      announce(`AccessBridge active: ${state.stats.totalCount} accessibility barriers remediated.`);
+      startObserver(doc);
+      await runRepairs(options);
+      announce(`AccessBridge active: ${state.stats.totalCount} accessibility barriers remediated.`, doc);
     } else {
       stopObserver();
-      revertRepairs();
-      announce('AccessBridge deactivated: original DOM restored.');
+      revertRepairs(options);
+      announce('AccessBridge deactivated: original DOM restored.', doc);
     }
 
+    dispatchStateChange();
     return state;
   }
 
   /**
-   * Checks storage for automatic domain activation
+   * Checks storage for automatic domain activation (Chrome extension only)
    */
   async function checkAutoActivation() {
     try {
-      const { autoFixDomains = [], geminiApiKey = '' } = await chrome.storage.sync.get(['autoFixDomains', 'geminiApiKey']);
-      state.hasGeminiKey = Boolean(geminiApiKey?.trim());
+      if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
+        const { autoFixDomains = [], geminiApiKey = '' } = await chrome.storage.sync.get(['autoFixDomains', 'geminiApiKey']);
+        state.hasGeminiKey = Boolean(geminiApiKey?.trim());
 
-      const currentHost = window.location.hostname;
-      if (currentHost && autoFixDomains.includes(currentHost)) {
-        state.autoFixThisDomain = true;
-        await setActive(true);
+        const currentHost = window.location.hostname;
+        if (currentHost && autoFixDomains.includes(currentHost)) {
+          state.autoFixThisDomain = true;
+          await setActive(true);
+        }
       }
     } catch (_) {}
   }
@@ -213,21 +253,24 @@
   /**
    * Extension messaging interface for popup and options
    */
-  if (chrome.runtime?.onMessage) {
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (!request || !request.type) return false;
 
       switch (request.type) {
         case 'GET_STATUS':
-          // Re-verify Gemini key status
-          chrome.storage.sync.get(['geminiApiKey', 'autoFixDomains']).then(data => {
-            state.hasGeminiKey = Boolean(data.geminiApiKey?.trim());
-            const domains = data.autoFixDomains || [];
-            state.autoFixThisDomain = Boolean(state.domain && domains.includes(state.domain));
+          if (chrome.storage?.sync) {
+            chrome.storage.sync.get(['geminiApiKey', 'autoFixDomains']).then(data => {
+              state.hasGeminiKey = Boolean(data.geminiApiKey?.trim());
+              const domains = data.autoFixDomains || [];
+              state.autoFixThisDomain = Boolean(state.domain && domains.includes(state.domain));
+              sendResponse({ success: true, state });
+            }).catch(() => {
+              sendResponse({ success: true, state });
+            });
+          } else {
             sendResponse({ success: true, state });
-          }).catch(() => {
-            sendResponse({ success: true, state });
-          });
+          }
           return true;
 
         case 'TOGGLE_ACTIVE':
@@ -239,6 +282,7 @@
         case 'TOGGLE_HIGHLIGHTS':
           const forced = request.payload?.highlight;
           state.highlightsActive = VisualHighlighter?.toggle(forced) ?? false;
+          dispatchStateChange();
           sendResponse({ success: true, highlightsActive: state.highlightsActive });
           return false;
 
@@ -247,6 +291,10 @@
             const host = window.location.hostname;
             if (!host) {
               sendResponse({ success: false, error: 'NO_HOSTNAME' });
+              return;
+            }
+            if (!chrome.storage?.sync) {
+              sendResponse({ success: false, error: 'NO_STORAGE' });
               return;
             }
             const { autoFixDomains = [] } = await chrome.storage.sync.get('autoFixDomains');
@@ -261,6 +309,7 @@
 
             await chrome.storage.sync.set({ autoFixDomains: updatedList });
             state.autoFixThisDomain = shouldEnable;
+            dispatchStateChange();
             sendResponse({ success: true, autoFixThisDomain: shouldEnable });
           })();
           return true;
@@ -279,14 +328,69 @@
     });
   }
 
+  /**
+   * Listen for postMessage commands (useful for sandboxed iframes)
+   */
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('message', async (event) => {
+      if (!event.data || typeof event.data !== 'object') return;
+      if (event.data.type === 'AB_SET_ACTIVE') {
+        const nextState = await setActive(Boolean(event.data.active));
+        if (event.source && typeof event.source.postMessage === 'function') {
+          event.source.postMessage({
+            type: 'AB_STATE_UPDATE',
+            state: window.AccessBridge.getState()
+          }, '*');
+        }
+      } else if (event.data.type === 'AB_GET_STATE') {
+        if (event.source && typeof event.source.postMessage === 'function') {
+          event.source.postMessage({
+            type: 'AB_STATE_UPDATE',
+            state: window.AccessBridge.getState()
+          }, '*');
+        }
+      } else if (event.data.type === 'AB_TOGGLE_HIGHLIGHTS') {
+        window.AccessBridge.toggleHighlights(event.data.highlight);
+        if (event.source && typeof event.source.postMessage === 'function') {
+          event.source.postMessage({
+            type: 'AB_STATE_UPDATE',
+            state: window.AccessBridge.getState()
+          }, '*');
+        }
+      }
+    });
+  }
+
+  // Public Web API exposed on window.AccessBridge
+  window.AccessBridge = {
+    setActive,
+    runRepairs,
+    revertRepairs,
+    toggleHighlights: (forced, doc = document) => {
+      state.highlightsActive = VisualHighlighter?.toggle(forced, doc) ?? false;
+      dispatchStateChange();
+      return state.highlightsActive;
+    },
+    getState: () => ({
+      ...state,
+      stats: { ...state.stats },
+      issues: [...state.issues],
+      lastReport: [...state.lastReport]
+    }),
+    announce,
+    modules: window.AccessBridgeModules
+  };
+
   // Initial setup
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        setupAnnouncer();
+        checkAutoActivation();
+      });
+    } else {
       setupAnnouncer();
       checkAutoActivation();
-    });
-  } else {
-    setupAnnouncer();
-    checkAutoActivation();
+    }
   }
 })();

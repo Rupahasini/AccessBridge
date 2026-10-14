@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apex Expedition Gear — WCAG 2.2 Test Laboratory</title>
+  <title>Apex Expedition Gear — WCAG 2.2 Test Laboratory & Web App</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="content/content.css">
   <style>
     /* -------------------------------------------------------------
-       TEST LAB STYLING (Intentionally embeds classic WCAG barriers)
+       TEST LAB STYLING (Intentionally embeds classic WCAG barriers in store)
        ------------------------------------------------------------- */
     :root {
       --lab-ink: #161616;
@@ -17,14 +18,17 @@
       --lab-card: #FFFFFF;
       --lab-border: #D8D2C4;
       --lab-accent: #0B5FFF;
+      --lab-accent-hover: #0047D6;
       --lab-terracotta: #C2410C;
+      --lab-success: #15803D;
+      --lab-muted: #4A463E;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      /* Intentional WCAG barrier: Suppressed focus outlines */
+      /* Intentional WCAG barrier in store content: Suppressed focus outlines */
       outline: none;
     }
 
@@ -38,56 +42,411 @@
     }
 
     /* -------------------------------------------------------------
-       JUDGE'S EVALUATION BANNER (Field Instrument Test Guide)
+       STANDALONE WEB-APP CONTROL DECK (data-ab-ignore prevents self-mutation)
        ------------------------------------------------------------- */
     .judge-test-banner {
       background-color: #161616;
       color: #F6F3EC;
       padding: 1.25rem 2rem;
       border-bottom: 3px solid var(--lab-terracotta);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
       position: sticky;
       top: 0;
       z-index: 10000;
+      transition: border-bottom-color 0.2s ease;
     }
 
-    .judge-header {
+    .judge-test-banner.is-remediated {
+      border-bottom-color: var(--lab-accent);
+    }
+
+    /* Accessibility: Strict Keyboard Focus Rings for Control Deck elements */
+    .judge-test-banner button:focus-visible,
+    .judge-test-banner a:focus-visible,
+    .judge-test-banner input:focus-visible {
+      outline: 3px solid #0B5FFF !important;
+      outline-offset: 3px !important;
+      box-shadow: 0 0 0 5px rgba(246, 243, 236, 0.95) !important;
+    }
+
+    .deck-top-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 1rem;
-      margin-bottom: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .deck-branding {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
     }
 
     .judge-tag {
       font-size: 0.75rem;
       font-weight: 700;
-      letter-spacing: 0.15em;
-      color: #C2410C;
+      letter-spacing: 0.12em;
+      color: #F97316;
       text-transform: uppercase;
+      background: rgba(194, 65, 12, 0.2);
+      padding: 0.25rem 0.6rem;
+      border-radius: 3px;
+      border: 1px solid rgba(194, 65, 12, 0.4);
+    }
+
+    .judge-tag.active {
+      color: #60A5FA;
+      background: rgba(11, 95, 255, 0.2);
+      border-color: rgba(11, 95, 255, 0.4);
     }
 
     .judge-title {
       font-family: 'Fraunces', Georgia, serif;
-      font-size: 1.25rem;
+      font-size: 1.35rem;
       font-weight: 700;
+      color: #F6F3EC;
+      margin: 0;
+    }
+
+    .deck-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .deck-nav-link {
+      color: #F6F3EC;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      font-weight: 700;
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      transition: background-color 0.15s ease;
+    }
+
+    .deck-nav-link:hover {
+      background-color: #2D2D2D;
+      border-color: #4A463E;
+    }
+
+    .deck-nav-link.primary-scanner {
+      background-color: #262626;
+      border-color: #0B5FFF;
+      color: #93C5FD;
+      text-decoration: none;
+    }
+
+    .deck-nav-link.primary-scanner:hover {
+      background-color: #0B5FFF;
+      color: #FFFFFF;
+    }
+
+    /* Primary Interactive Controls Bar */
+    .deck-controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      background: #202020;
+      border: 1px solid #383838;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .deck-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .ab-btn {
+      font-family: inherit;
+      font-size: 0.9375rem;
+      font-weight: 700;
+      padding: 0.625rem 1.25rem;
+      border-radius: 4px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.15s ease;
+      line-height: 1.2;
+    }
+
+    .ab-btn-fix {
+      background-color: var(--lab-accent);
+      color: #FFFFFF;
+      border-color: #3B82F6;
+      box-shadow: 0 2px 8px rgba(11, 95, 255, 0.4);
+    }
+
+    .ab-btn-fix:hover {
+      background-color: var(--lab-accent-hover);
+      box-shadow: 0 4px 12px rgba(11, 95, 255, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .ab-btn-fix.is-active {
+      background-color: var(--lab-success);
+      border-color: #4ADE80;
+      box-shadow: 0 2px 8px rgba(21, 128, 61, 0.4);
+    }
+
+    /* Before / After Rocker Segmented Toggle */
+    .ab-toggle-group {
+      display: inline-flex;
+      background: #111111;
+      border: 1px solid #3A3A3A;
+      border-radius: 5px;
+      padding: 3px;
+    }
+
+    .ab-mode-btn {
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: #A3A3A3;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      padding: 0.45rem 0.875rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .ab-mode-btn:hover {
       color: #F6F3EC;
     }
 
+    .ab-mode-btn.is-active[data-mode="before"] {
+      background: var(--lab-terracotta);
+      color: #FFFFFF;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+
+    .ab-mode-btn.is-active[data-mode="after"] {
+      background: var(--lab-accent);
+      color: #FFFFFF;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+
+    /* Diagnostic Highlights Checkbox */
+    .ab-switch-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      color: #D8D2C4;
+      font-weight: 700;
+      user-select: none;
+    }
+
+    .ab-switch-input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--lab-accent);
+      cursor: pointer;
+    }
+
+    /* Telemetry Metrics Grid */
+    .deck-metrics-strip {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .telemetry-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .telemetry-count {
+      font-family: 'Fraunces', serif;
+      font-size: 1.5rem;
+      font-weight: 900;
+      line-height: 1;
+      color: #F6F3EC;
+    }
+
+    .telemetry-count.highlight-total {
+      color: #60A5FA;
+    }
+
+    .telemetry-label {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #A3A3A3;
+      margin-top: 0.15rem;
+    }
+
+    /* Live Report Panel */
+    .ab-report-wrapper {
+      background: #1C1C1C;
+      border: 1px solid #383838;
+      border-radius: 6px;
+      margin-top: 1rem;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .ab-report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: #252525;
+      border-bottom: 1px solid #333333;
+    }
+
+    .ab-report-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #F6F3EC;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .ab-report-badge {
+      font-size: 0.6875rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .ab-report-badge.badge-fixed {
+      background: #15803D;
+      color: #FFFFFF;
+    }
+
+    .ab-report-badge.badge-unfixed {
+      background: #C2410C;
+      color: #FFFFFF;
+    }
+
+    .ab-report-filters {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .ab-filter-btn {
+      background: transparent;
+      border: 1px solid #444444;
+      color: #A3A3A3;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.5rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+
+    .ab-filter-btn:hover {
+      color: #FFFFFF;
+      border-color: #666666;
+    }
+
+    .ab-filter-btn.is-active {
+      background: #0B5FFF;
+      border-color: #0B5FFF;
+      color: #FFFFFF;
+    }
+
+    .ab-report-table-scroll {
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .ab-report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      text-align: left;
+    }
+
+    .ab-report-table th {
+      background: #222222;
+      color: #A3A3A3;
+      font-weight: 700;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid #333333;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .ab-report-table td {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid #2B2B2B;
+      color: #D8D2C4;
+      vertical-align: middle;
+    }
+
+    .ab-report-table tr:hover td {
+      background: #242424;
+    }
+
+    .sc-pill {
+      display: inline-block;
+      font-family: monospace;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      padding: 0.1rem 0.4rem;
+      border-radius: 3px;
+      background: #2E2E2E;
+      color: #E2E8F0;
+      border: 1px solid #444444;
+    }
+
+    .sc-pill.aria { color: #FDBA74; border-color: #9A3412; }
+    .sc-pill.focus { color: #93C5FD; border-color: #1E40AF; }
+    .sc-pill.layout { color: #FDE047; border-color: #854D0E; }
+
+    .status-tag {
+      font-weight: 700;
+      font-size: 0.6875rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .status-tag.fixed { color: #4ADE80; }
+    .status-tag.barrier { color: #F87171; }
+
+    /* Evaluation Step Guide Cards */
     .judge-steps-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1rem;
+      gap: 0.75rem;
       font-size: 0.8125rem;
+      margin-top: 1rem;
     }
 
     .judge-step-card {
-      background-color: #242424;
-      border: 1px solid #383838;
+      background-color: #202020;
+      border: 1px solid #333333;
       border-left: 3px solid var(--lab-terracotta);
       border-radius: 4px;
-      padding: 0.625rem 0.875rem;
+      padding: 0.625rem 0.75rem;
     }
 
     .judge-step-card.active-bridge {
@@ -97,7 +456,7 @@
     .judge-step-num {
       font-weight: 700;
       color: #F6F3EC;
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.2rem;
       display: block;
     }
 
@@ -326,65 +685,172 @@
       font-family: inherit;
       font-size: 0.9375rem;
     }
+
+    @media (max-width: 768px) {
+      .hero-banner {
+        grid-template-columns: 1fr;
+      }
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      .deck-controls-bar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .deck-metrics-strip {
+        justify-content: space-between;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Judge Evaluation Control Bar -->
-  <aside class="judge-test-banner" aria-label="Hackathon Evaluation Guide">
-    <div class="judge-header">
-      <div>
-        <span class="judge-tag">WCAG 2.2 AA AUDIT HARNESS</span>
-        <h2 class="judge-title">AccessBridge Live Demonstration Lab</h2>
+
+  <!-- =============================================================
+       STANDALONE WEB INSTRUMENT DECK (data-ab-ignore shields from fixer)
+       ============================================================= -->
+  <aside class="judge-test-banner" data-ab-ignore="true" aria-label="AccessBridge Live Remediation Instrument">
+    <div class="deck-top-row">
+      <div class="deck-branding">
+        <span id="deck-status-tag" class="judge-tag">ORIGINAL DOM (BARRIERS ACTIVE)</span>
+        <h1 class="judge-title">AccessBridge Standalone Lab</h1>
       </div>
-      <div style="font-size: 0.8125rem; color: #D8D2C4;">
-        Open the <strong>AccessBridge extension popup</strong> in your toolbar to toggle between Before & After!
+      <nav class="deck-nav-links" aria-label="Application navigation">
+        <a href="demo.html" class="deck-nav-link" aria-current="page">Demo Store</a>
+        <a href="paste.html" class="deck-nav-link primary-scanner">📋 Paste & Scan Any HTML &rarr;</a>
+      </nav>
+    </div>
+
+    <!-- Master Controls Deck -->
+    <div class="deck-controls-bar" role="region" aria-label="Remediation controls">
+      <div class="deck-actions-group">
+        <!-- Prominent 'Fix this page' Button -->
+        <button id="btn-fix-page" class="ab-btn ab-btn-fix" type="button" aria-label="Fix all accessibility barriers on this page">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <span id="btn-fix-text">Fix this page</span>
+        </button>
+
+        <!-- Before / After Segmented Rocker -->
+        <div class="ab-toggle-group" role="group" aria-label="Remediation Before and After state toggle">
+          <button id="btn-mode-before" class="ab-mode-btn is-active" type="button" data-mode="before" aria-pressed="true">
+            Before (Original)
+          </button>
+          <button id="btn-mode-after" class="ab-mode-btn" type="button" data-mode="after" aria-pressed="false">
+            After (Remediated)
+          </button>
+        </div>
+
+        <!-- Diagnostic Highlights Toggle -->
+        <label class="ab-switch-label" for="toggle-highlights">
+          <input type="checkbox" id="toggle-highlights" class="ab-switch-input" aria-label="Toggle visual diagnostic badges on repaired elements">
+          <span>Show Diagnostic Badges</span>
+        </label>
+      </div>
+
+      <!-- Real-Time Telemetry Counters -->
+      <div class="deck-metrics-strip" aria-label="Barriers bridged counters">
+        <div class="telemetry-item">
+          <span id="metric-total" class="telemetry-count highlight-total">00</span>
+          <span class="telemetry-label">Total Bridged</span>
+        </div>
+        <div class="telemetry-item">
+          <span id="metric-aria" class="telemetry-count">00</span>
+          <span class="telemetry-label">ARIA & Names</span>
+        </div>
+        <div class="telemetry-item">
+          <span id="metric-focus" class="telemetry-count">00</span>
+          <span class="telemetry-label">Keyboard & Focus</span>
+        </div>
+        <div class="telemetry-item">
+          <span id="metric-layout" class="telemetry-count">00</span>
+          <span class="telemetry-label">Zoom Reflow</span>
+        </div>
       </div>
     </div>
 
+    <!-- Live Report of Issues Found and Fixed -->
+    <section class="ab-report-wrapper" aria-labelledby="report-heading">
+      <div class="ab-report-header">
+        <div class="ab-report-title">
+          <span id="report-heading">Live Accessibility Barrier Audit</span>
+          <span id="report-badge" class="ab-report-badge badge-unfixed">11 Barriers Active</span>
+        </div>
+        <div class="ab-report-filters" role="group" aria-label="Filter issues by category">
+          <button class="ab-filter-btn is-active" type="button" data-filter="all">All (<span id="count-filter-all">11</span>)</button>
+          <button class="ab-filter-btn" type="button" data-filter="aria">ARIA (<span id="count-filter-aria">6</span>)</button>
+          <button class="ab-filter-btn" type="button" data-filter="focus">Keyboard (<span id="count-filter-focus">4</span>)</button>
+          <button class="ab-filter-btn" type="button" data-filter="layout">Zoom (<span id="count-filter-layout">1</span>)</button>
+          <button id="btn-copy-report" class="ab-filter-btn" type="button" aria-label="Copy audit report to clipboard">📋 Copy Report</button>
+        </div>
+      </div>
+
+      <div class="ab-report-table-scroll" tabindex="0" role="region" aria-label="Live audit details list">
+        <table class="ab-report-table">
+          <thead>
+            <tr>
+              <th scope="col" style="width: 140px;">WCAG Criterion</th>
+              <th scope="col" style="width: 160px;">Target Control</th>
+              <th scope="col">Barrier Detected</th>
+              <th scope="col">Remediation Action</th>
+              <th scope="col" style="width: 110px;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="report-tbody">
+            <!-- Populated dynamically by script -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Hackathon Quick Evaluation Guides -->
     <div class="judge-steps-grid">
       <div class="judge-step-card">
-        <span class="judge-step-num">Test 1: Screen Reader (VoiceOver / Narrator)</span>
+        <span class="judge-step-num">Test 1: Screen Reader</span>
         <p class="judge-step-text">
-          Before: Top navigation icons announce as silent buttons or generic "button".
-          <br><strong>After:</strong> Inferred as "Search", "Shopping cart", "Add to wishlist", and "Open navigation menu".
+          Before: Nav icons silent.
+          <br><strong>After:</strong> Inferred as "Search", "Shopping cart", "Add to wishlist", "Open navigation menu".
         </p>
       </div>
 
       <div class="judge-step-card">
-        <span class="judge-step-num">Test 2: Keyboard-Only Navigation</span>
+        <span class="judge-step-num">Test 2: Keyboard-Only</span>
         <p class="judge-step-text">
-          Before: Press <kbd>Tab</kbd>. "Add to Pack" buttons are unreachable fake <code>&lt;div&gt;</code>s with no focus ring.
-          <br><strong>After:</strong> Press <kbd>Tab</kbd>. Dual-ring focus snaps cleanly; press <kbd>Enter</kbd> or <kbd>Space</kbd> to trigger.
+          Before: Press <kbd>Tab</kbd>. "Add to Pack" fake divs unreachable.
+          <br><strong>After:</strong> Dual-ring focus snaps; press <kbd>Enter</kbd> or <kbd>Space</kbd> to activate.
         </p>
       </div>
 
       <div class="judge-step-card">
-        <span class="judge-step-num">Test 3: 200% Zoom & Text Reflow</span>
+        <span class="judge-step-num">Test 3: 200% Zoom Reflow</span>
         <p class="judge-step-text">
-          Before: Press <kbd>Ctrl + +</kbd> to 200%. Top banner and product specs truncate and clip out of sight.
-          <br><strong>After:</strong> Containers elasticize into <code>min-height</code>; text reflows without loss of content.
+          Before: Press <kbd>Ctrl + +</kbd> to 200%. Banner and product specs truncate.
+          <br><strong>After:</strong> Fixed heights become <code>min-height</code>; text reflows without loss.
         </p>
       </div>
 
       <div class="judge-step-card active-bridge">
-        <span class="judge-step-num">Test 4: Chrome Lighthouse Audit</span>
+        <span class="judge-step-num">Test 4: Lighthouse Audit</span>
         <p class="judge-step-text">
-          Run Chrome DevTools Accessibility Audit.
-          <br><strong>Before:</strong> ~58/100 (Missing names, unlabeled inputs, no skip link).
+          Run Chrome Accessibility audit.
+          <br><strong>Before:</strong> ~58/100 score.
           <br><strong>After:</strong> 98–100/100 full compliance.
         </p>
       </div>
     </div>
   </aside>
 
-  <div class="store-container">
+  <!-- =============================================================
+       THE BROKEN STOREFRONT (Apex Expedition Gear Test Target)
+       ============================================================= -->
+  <main class="store-container" id="main-content">
     <!-- Category 3 Barrier: Rigid Fixed Height Banner that clips text at 200% zoom -->
     <div class="fixed-announcement">
       <strong>URGENT WINTER EXPEDITION ADVISORY:</strong> High-altitude trails in the Karakoram range are closed due to severe blizzard conditions. All backcountry gear deliveries between passes 4 and 8 are held until snow clearing operations finalize next Tuesday.
     </div>
 
     <!-- Category 1 Barrier: Unlabeled Icon Navigation Buttons -->
-    <nav class="store-nav">
+    <nav class="store-nav" aria-label="Apex Outfitters Storefront">
       <a href="#" class="store-brand">Apex Outfitters</a>
 
       <ul class="nav-links">
@@ -536,6 +1002,320 @@
         </div>
       </form>
     </section>
-  </div>
+  </main>
+
+  <!-- =============================================================
+       SELF-CONTAINED MODULE SCRIPTS (Loaded via <script> tags)
+       ============================================================= -->
+  <script src="content/modules/semantic-aria-fixer.js"></script>
+  <script src="content/modules/focus-tree-rebuilder.js"></script>
+  <script src="content/modules/layout-elasticizer.js"></script>
+  <script src="content/modules/visual-highlighter.js"></script>
+  <script src="content/core-engine.js"></script>
+
+  <!-- =============================================================
+       STANDALONE PAGE CONTROLLER (Web Application Logic)
+       ============================================================= -->
+  <script>
+    (function() {
+      'use strict';
+
+      // Known intentional test barriers on this demo page for initial Before view
+      const INITIAL_BARRIERS = [
+        {
+          criterion: 'WCAG 2.4.1 Bypass Blocks',
+          category: 'focus',
+          selector: 'main#main-content',
+          issue: 'Missing Skip to Main Content landmark link',
+          fix: 'Inject high-contrast bypass link to main landmark',
+          tag: 'a'
+        },
+        {
+          criterion: 'WCAG 4.1.2 Name, Role, Value',
+          category: 'aria',
+          selector: 'button.search-button',
+          issue: 'Icon-only button has no accessible label',
+          fix: 'Assign aria-label="Search" inferred from SVG magnifying glass icon',
+          tag: 'button'
+        },
+        {
+          criterion: 'WCAG 4.1.2 Name, Role, Value',
+          category: 'aria',
+          selector: 'button.heart-wishlist-btn',
+          issue: 'Icon-only button has no accessible label',
+          fix: 'Assign aria-label="Add to wishlist" inferred from heart icon',
+          tag: 'button'
+        },
+        {
+          criterion: 'WCAG 4.1.2 Name, Role, Value',
+          category: 'aria',
+          selector: 'button.shopping-cart-trigger',
+          issue: 'Icon-only button has no accessible label',
+          fix: 'Assign aria-label="Shopping cart" inferred from cart icon',
+          tag: 'button'
+        },
+        {
+          criterion: 'WCAG 4.1.2 Name, Role, Value',
+          category: 'aria',
+          selector: 'button.hamburger-nav-toggle',
+          issue: 'Icon-only button has no accessible label',
+          fix: 'Assign aria-label="Open navigation menu" inferred from bars icon',
+          tag: 'button'
+        },
+        {
+          criterion: 'WCAG 2.4.4 Link Purpose',
+          category: 'aria',
+          selector: 'a[href="/checkout"]',
+          issue: 'Anchor link lacks contextual accessible text',
+          fix: 'Assign aria-label="Proceed to checkout" inferred from /checkout slug',
+          tag: 'a'
+        },
+        {
+          criterion: 'WCAG 1.1.1 Non-text Content',
+          category: 'aria',
+          selector: 'header.hero-banner img',
+          issue: 'Hero photograph missing alt attribute',
+          fix: 'Assign contextual alt text inferred from surrounding header copy',
+          tag: 'img'
+        },
+        {
+          criterion: 'WCAG 2.1.1 Keyboard',
+          category: 'focus',
+          selector: 'article:nth-child(1) .fake-button-cta',
+          issue: 'Fake <div> button unreachable via keyboard Tab key',
+          fix: 'Set tabindex="0", role="button", and attach Enter/Space listeners',
+          tag: 'div'
+        },
+        {
+          criterion: 'WCAG 2.1.1 Keyboard',
+          category: 'focus',
+          selector: 'article:nth-child(2) .fake-button-cta',
+          issue: 'Fake <div> button unreachable via keyboard Tab key',
+          fix: 'Set tabindex="0", role="button", and attach Enter/Space listeners',
+          tag: 'div'
+        },
+        {
+          criterion: 'WCAG 2.1.1 Keyboard',
+          category: 'focus',
+          selector: 'article:nth-child(3) .fake-button-cta',
+          issue: 'Fake <div> button unreachable via keyboard Tab key',
+          fix: 'Set tabindex="0", role="button", and attach Enter/Space listeners',
+          tag: 'div'
+        },
+        {
+          criterion: 'WCAG 1.4.4 / 1.4.10 Reflow',
+          category: 'layout',
+          selector: '.fixed-announcement',
+          issue: 'Fixed 44px container truncates emergency text under 200% zoom',
+          fix: 'Convert rigid height to elastic min-height with visible reflow',
+          tag: 'div'
+        }
+      ];
+
+      // DOM Elements
+      const btnFixPage = document.getElementById('btn-fix-page');
+      const btnFixText = document.getElementById('btn-fix-text');
+      const btnModeBefore = document.getElementById('btn-mode-before');
+      const btnModeAfter = document.getElementById('btn-mode-after');
+      const toggleHighlights = document.getElementById('toggle-highlights');
+      const deckStatusTag = document.getElementById('deck-status-tag');
+      const testBanner = document.querySelector('.judge-test-banner');
+
+      const metricTotal = document.getElementById('metric-total');
+      const metricAria = document.getElementById('metric-aria');
+      const metricFocus = document.getElementById('metric-focus');
+      const metricLayout = document.getElementById('metric-layout');
+
+      const reportBadge = document.getElementById('report-badge');
+      const reportTbody = document.getElementById('report-tbody');
+      const filterBtns = document.querySelectorAll('.ab-filter-btn[data-filter]');
+      const btnCopyReport = document.getElementById('btn-copy-report');
+
+      let currentFilter = 'all';
+
+      function padZero(num) {
+        const val = Number(num) || 0;
+        return val < 10 ? `0${val}` : `${val}`;
+      }
+
+      function renderReport(items, isActive) {
+        if (!reportTbody) return;
+        reportTbody.innerHTML = '';
+
+        const filtered = items.filter(item => {
+          if (currentFilter === 'all') return true;
+          if (currentFilter === 'aria') return item.type?.startsWith('aria-') || item.category === 'aria';
+          if (currentFilter === 'focus') return item.type?.startsWith('focus-') || item.category === 'focus';
+          if (currentFilter === 'layout') return item.type?.startsWith('layout-') || item.category === 'layout';
+          return true;
+        });
+
+        filtered.forEach(item => {
+          const tr = document.createElement('tr');
+
+          // Criterion badge
+          let pillClass = 'aria';
+          const typeStr = item.type || item.category || '';
+          if (typeStr.includes('focus')) pillClass = 'focus';
+          if (typeStr.includes('layout')) pillClass = 'layout';
+
+          tr.innerHTML = `
+            <td><span class="sc-pill ${pillClass}">${escapeHtml(item.criterion || 'WCAG 2.2')}</span></td>
+            <td><code>${escapeHtml(item.selector || item.tag || 'element')}</code></td>
+            <td>${escapeHtml(item.issue || 'Accessibility barrier detected')}</td>
+            <td>${escapeHtml(item.fix || 'Remediated for assistive tech')}</td>
+            <td>
+              <span class="status-tag ${isActive ? 'fixed' : 'barrier'}">
+                ${isActive ? '✓ FIXED' : '⚠ BARRIER'}
+              </span>
+            </td>
+          `;
+          reportTbody.appendChild(tr);
+        });
+      }
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function updateUI(state) {
+        const isActive = Boolean(state?.active);
+        const stats = state?.stats || {};
+        const total = stats.totalCount || 0;
+
+        // Button states
+        if (isActive) {
+          btnFixPage.classList.add('is-active');
+          btnFixText.textContent = '✓ Remediated (Re-scan)';
+          btnModeAfter.classList.add('is-active');
+          btnModeAfter.setAttribute('aria-pressed', 'true');
+          btnModeBefore.classList.remove('is-active');
+          btnModeBefore.setAttribute('aria-pressed', 'false');
+
+          deckStatusTag.textContent = 'ACCESSBRIDGE ACTIVE (REMEDIATED)';
+          deckStatusTag.className = 'judge-tag active';
+          testBanner.classList.add('is-remediated');
+
+          reportBadge.textContent = `${total} Barriers Bridged`;
+          reportBadge.className = 'ab-report-badge badge-fixed';
+
+          metricTotal.textContent = padZero(total);
+          metricAria.textContent = padZero(stats.ariaCount || 0);
+          metricFocus.textContent = padZero(stats.focusCount || 0);
+          metricLayout.textContent = padZero(stats.layoutCount || 0);
+
+          const issues = state.issues && state.issues.length ? state.issues : state.lastReport || [];
+          renderReport(issues, true);
+        } else {
+          btnFixPage.classList.remove('is-active');
+          btnFixText.textContent = 'Fix this page';
+          btnModeBefore.classList.add('is-active');
+          btnModeBefore.setAttribute('aria-pressed', 'true');
+          btnModeAfter.classList.remove('is-active');
+          btnModeAfter.setAttribute('aria-pressed', 'false');
+
+          deckStatusTag.textContent = 'ORIGINAL DOM (BARRIERS ACTIVE)';
+          deckStatusTag.className = 'judge-tag';
+          testBanner.classList.remove('is-remediated');
+
+          reportBadge.textContent = '11 Barriers Active';
+          reportBadge.className = 'ab-report-badge badge-unfixed';
+
+          metricTotal.textContent = '00';
+          metricAria.textContent = '00';
+          metricFocus.textContent = '00';
+          metricLayout.textContent = '00';
+
+          renderReport(INITIAL_BARRIERS, false);
+        }
+
+        if (toggleHighlights) {
+          toggleHighlights.checked = Boolean(state?.highlightsActive);
+        }
+      }
+
+      // Fix this page button
+      btnFixPage.addEventListener('click', async () => {
+        if (!window.AccessBridge) return;
+        const current = window.AccessBridge.getState();
+        if (!current.active) {
+          await window.AccessBridge.setActive(true);
+        } else {
+          await window.AccessBridge.runRepairs();
+        }
+      });
+
+      // Before button
+      btnModeBefore.addEventListener('click', async () => {
+        if (!window.AccessBridge) return;
+        await window.AccessBridge.setActive(false);
+      });
+
+      // After button
+      btnModeAfter.addEventListener('click', async () => {
+        if (!window.AccessBridge) return;
+        await window.AccessBridge.setActive(true);
+      });
+
+      // Highlights toggle
+      toggleHighlights.addEventListener('change', () => {
+        if (!window.AccessBridge) return;
+        window.AccessBridge.toggleHighlights(toggleHighlights.checked);
+      });
+
+      // Filter buttons
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          filterBtns.forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          currentFilter = btn.dataset.filter || 'all';
+          const state = window.AccessBridge?.getState() || {};
+          const items = state.active ? (state.issues?.length ? state.issues : state.lastReport || []) : INITIAL_BARRIERS;
+          renderReport(items, Boolean(state.active));
+        });
+      });
+
+      // Copy audit report
+      btnCopyReport.addEventListener('click', () => {
+        const state = window.AccessBridge?.getState() || {};
+        const isActive = Boolean(state.active);
+        const stats = state.stats || {};
+        const summary = [
+          '=== AccessBridge Accessibility Audit Report ===',
+          `Mode: ${isActive ? 'Remediated (Active)' : 'Original DOM (Before)'}`,
+          `Total Barriers Addressed: ${isActive ? stats.totalCount : 0}`,
+          `ARIA & Names Remedied: ${isActive ? stats.ariaCount : 0}`,
+          `Keyboard & Focus Restored: ${isActive ? stats.focusCount : 0}`,
+          `Layout & Zoom Reflowed: ${isActive ? stats.layoutCount : 0}`,
+          'Test Target: Apex Expedition Gear Storefront (demo.html)',
+          'Engine: AccessBridge Real-Time WCAG 2.2 AA (Standalone Web Version)'
+        ].join('\n');
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(summary).then(() => {
+            const originalText = btnCopyReport.textContent;
+            btnCopyReport.textContent = '✓ Copied!';
+            setTimeout(() => { btnCopyReport.textContent = originalText; }, 2000);
+          }).catch(() => {});
+        }
+      });
+
+      // Listen for engine state change events (dispatched by core-engine or extension)
+      window.addEventListener('accessbridge-state-change', (e) => {
+        updateUI(e.detail);
+      });
+
+      // Initial render in Before state
+      document.addEventListener('DOMContentLoaded', () => {
+        const state = window.AccessBridge?.getState() || { active: false };
+        updateUI(state);
+      });
+    })();
+  </script>
 </body>
 </html>

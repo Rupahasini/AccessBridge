@@ -49,6 +49,8 @@ window.AccessBridgeModules.FocusTreeRebuilder = (function() {
     if (isNaturallyInteractive(el)) return false;
     if (el.dataset.abRepaired) return false;
 
+    if (el.closest && el.closest('[data-ab-ignore]')) return false;
+
     // Skip large structural containers to avoid making the whole page/article a button
     const tag = el.tagName.toLowerCase();
     if (['html', 'body', 'main', 'header', 'footer', 'nav', 'article', 'section', 'table', 'form'].includes(tag)) {
@@ -71,7 +73,8 @@ window.AccessBridgeModules.FocusTreeRebuilder = (function() {
     // Check computed cursor style (throttled/cached where possible)
     let hasPointerCursor = false;
     try {
-      const computed = window.getComputedStyle(el);
+      const win = el.ownerDocument?.defaultView || window;
+      const computed = win.getComputedStyle(el);
       hasPointerCursor = computed.cursor === 'pointer';
     } catch (_) {}
 
@@ -95,24 +98,26 @@ window.AccessBridgeModules.FocusTreeRebuilder = (function() {
   /**
    * Detects or injects a Skip to Main Content link
    */
-  function ensureSkipLink() {
+  function ensureSkipLink(doc = document) {
+    if (!doc || !doc.body) return null;
+
     // Check if an existing skip link is present
-    const existingSkip = document.querySelector(
+    const existingSkip = doc.querySelector(
       'a[href^="#"][class*="skip" i], a[href^="#"][id*="skip" i], a[href^="#"][aria-label*="skip" i]'
     );
-    if (existingSkip) return 0;
+    if (existingSkip) return null;
 
     // Identify main content destination
-    let mainTarget = document.querySelector('main, [role="main"], article, #main, #content, .main-content');
+    let mainTarget = doc.querySelector('main, [role="main"], article, #main, #content, .main-content');
     if (!mainTarget) {
-      mainTarget = document.querySelector('h1');
+      mainTarget = doc.querySelector('h1');
     }
     if (!mainTarget) {
       // Fallback: first content section
-      mainTarget = document.body.firstElementChild;
+      mainTarget = doc.body.firstElementChild;
     }
 
-    if (!mainTarget) return 0;
+    if (!mainTarget) return null;
 
     // Anchor configuration
     const anchorId = mainTarget.id || 'accessbridge-main-content-anchor';
@@ -128,7 +133,7 @@ window.AccessBridgeModules.FocusTreeRebuilder = (function() {
     }
 
     // Create high-craft accessible skip link
-    const skipLink = document.createElement('a');
+    const skipLink = doc.createElement('a');
     skipLink.href = `#${anchorId}`;
     skipLink.className = 'accessbridge-skip-link';
     skipLink.textContent = 'Skip to main content';
@@ -136,34 +141,46 @@ window.AccessBridgeModules.FocusTreeRebuilder = (function() {
     skipLink.setAttribute('aria-label', 'Skip to main content landmark');
 
     // When clicked, explicitly move focus to main landmark
-    skipLink.addEventListener('click', (e) => {
+    skipLink.addEventListener('click', () => {
       mainTarget.focus();
     });
 
-    if (document.body.firstChild) {
-      document.body.insertBefore(skipLink, document.body.firstChild);
+    if (doc.body.firstChild) {
+      doc.body.insertBefore(skipLink, doc.body.firstChild);
     } else {
-      document.body.appendChild(skipLink);
+      doc.body.appendChild(skipLink);
     }
 
-    return 1;
+    return skipLink;
   }
 
   /**
    * Main Focus Tree repair scan
    */
-  function repair() {
+  function repair(options = {}) {
+    const doc = options.doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return { count: 0, modified: [] };
+
     let focusFixedCount = 0;
     const modifiedElements = [];
 
     // 1. Ensure Skip to Main Content
-    const skipAdded = ensureSkipLink();
-    if (skipAdded) {
-      focusFixedCount += skipAdded;
+    const skipEl = ensureSkipLink(doc);
+    if (skipEl) {
+      focusFixedCount += 1;
+      modifiedElements.push({
+        el: skipEl,
+        type: 'focus-skip-link',
+        criterion: 'WCAG 2.4.1 Bypass Blocks',
+        issue: 'Missing Skip to Main Content landmark link',
+        fix: 'Injected high-contrast bypass skip link at document head',
+        tag: 'a',
+        selector: 'a.accessbridge-skip-link'
+      });
     }
 
     // 2. Scan for unreachable clickable div/span/custom elements
-    const candidates = document.querySelectorAll(
+    const candidates = doc.querySelectorAll(
       'div, span, p, a:not([href]), li, tr, i, em, svg, [role="button"]:not([tabindex])'
     );
 
@@ -187,7 +204,18 @@ window.AccessBridgeModules.FocusTreeRebuilder = (function() {
         attachedKeyListeners.set(el, handleButtonKeydown);
 
         focusFixedCount++;
-        modifiedElements.push({ el, type: 'focus-clickable' });
+        const tag = el.tagName.toLowerCase();
+        const snippet = el.innerText ? el.innerText.trim().slice(0, 30) : '';
+        modifiedElements.push({
+          el,
+          type: 'focus-clickable',
+          label: snippet || 'Clickable control',
+          criterion: 'WCAG 2.1.1 Keyboard',
+          issue: `Inaccessible clickable <${tag}> cannot receive keyboard focus or keystrokes`,
+          fix: 'Set tabindex="0", role="button", and attached Enter/Space key actuation with scroll suppression',
+          tag,
+          selector: el.className ? `${tag}.${el.className.split(' ').join('.')}` : tag
+        });
       }
     });
 
@@ -200,26 +228,29 @@ window.AccessBridgeModules.FocusTreeRebuilder = (function() {
   /**
    * Reverts all keyboard and focus repairs to original state
    */
-  function revert() {
+  function revert(options = {}) {
+    const doc = options.doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+
     // 1. Remove injected skip link
-    const injectedSkip = document.querySelectorAll('[data-ab-injected="skip-link"]');
+    const injectedSkip = doc.querySelectorAll('[data-ab-injected="skip-link"]');
     injectedSkip.forEach(el => el.remove());
 
     // Clean up anchor tag attributes
-    const injectedAnchors = document.querySelectorAll('[data-ab-injected-id="true"]');
+    const injectedAnchors = doc.querySelectorAll('[data-ab-injected-id="true"]');
     injectedAnchors.forEach(el => {
       el.removeAttribute('id');
       delete el.dataset.abInjectedId;
     });
 
-    const injectedTabindices = document.querySelectorAll('[data-ab-injected-tabindex="true"]');
+    const injectedTabindices = doc.querySelectorAll('[data-ab-injected-tabindex="true"]');
     injectedTabindices.forEach(el => {
       el.removeAttribute('tabindex');
       delete el.dataset.abInjectedTabindex;
     });
 
     // 2. Revert clickable elements
-    const repaired = document.querySelectorAll('[data-ab-repaired="focus-clickable"]');
+    const repaired = doc.querySelectorAll('[data-ab-repaired="focus-clickable"]');
     repaired.forEach(el => {
       // Remove event listener
       const listener = attachedKeyListeners.get(el);

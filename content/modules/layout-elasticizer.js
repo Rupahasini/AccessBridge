@@ -35,21 +35,26 @@ window.AccessBridgeModules.LayoutElasticizer = (function() {
   /**
    * Main Layout Elasticity scan
    */
-  function repair() {
+  function repair(options = {}) {
+    const doc = options.doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return { count: 0, modified: [] };
+    const win = doc.defaultView || window;
+
     let elasticFixedCount = 0;
     const modifiedElements = [];
 
     // Target elements prone to rigid height clipping: cards, banners, descriptions, summaries, testimonials, articles
-    const candidates = document.querySelectorAll(
+    const candidates = doc.querySelectorAll(
       'p, article, section, aside, .card, .banner, .alert, .product-card, .description, .summary, .content, .tile, .post, [class*="box"], [class*="card"], [class*="banner"]'
     );
 
     candidates.forEach(el => {
       if (el.dataset.abRepaired) return;
+      if (el.closest && el.closest('[data-ab-ignore]')) return;
       if (!isTextContainer(el)) return;
 
       let modified = false;
-      const computed = window.getComputedStyle(el);
+      const computed = win.getComputedStyle(el);
 
       // 1. Inspect Fixed Heights with Overflow Truncation
       const inlineHeight = el.style.height;
@@ -60,6 +65,8 @@ window.AccessBridgeModules.LayoutElasticizer = (function() {
       const hasHiddenOverflow = ['hidden', 'clip'].includes(computedOverflow) || ['hidden', 'clip'].includes(computedOverflowY);
       const hasFixedInlineHeight = inlineHeight && /px$/i.test(inlineHeight.trim());
 
+      let targetHeightPx = 0;
+
       // If container has a fixed inline pixel height, or hidden overflow with fixed height
       if (hasFixedInlineHeight || (hasHiddenOverflow && computedHeight > 0 && computedHeight < 600)) {
         // Record original inline styles for pristine reversibility
@@ -68,7 +75,7 @@ window.AccessBridgeModules.LayoutElasticizer = (function() {
         el.dataset.abOriginalInlineOverflow = el.style.overflow || '__NONE__';
         el.dataset.abOriginalInlineOverflowY = el.style.overflowY || '__NONE__';
 
-        const targetHeightPx = hasFixedInlineHeight ? parseFloat(inlineHeight) : computedHeight;
+        targetHeightPx = hasFixedInlineHeight ? parseFloat(inlineHeight) : computedHeight;
 
         // Apply elastic properties
         el.style.setProperty('min-height', `${targetHeightPx}px`, 'important');
@@ -97,7 +104,18 @@ window.AccessBridgeModules.LayoutElasticizer = (function() {
       if (modified) {
         el.dataset.abRepaired = 'layout-elastic';
         elasticFixedCount++;
-        modifiedElements.push({ el, type: 'layout-elastic' });
+        const tag = el.tagName.toLowerCase();
+        const snippet = (el.innerText || el.textContent || '').trim().slice(0, 32);
+        modifiedElements.push({
+          el,
+          type: 'layout-elastic',
+          label: snippet ? `"${snippet}..."` : 'Text container',
+          criterion: 'WCAG 1.4.4 / 1.4.10 Reflow & Zoom',
+          issue: `Rigid fixed-pixel height on <${tag}> clips text at 200% zoom`,
+          fix: `Converted to flexible min-height (${targetHeightPx || 'auto'}px) with visible reflow`,
+          tag,
+          selector: el.className ? `${tag}.${el.className.split(' ').join('.')}` : tag
+        });
       }
     });
 
@@ -110,8 +128,11 @@ window.AccessBridgeModules.LayoutElasticizer = (function() {
   /**
    * Reverts all elastic layout adjustments to original state
    */
-  function revert() {
-    const repaired = document.querySelectorAll('[data-ab-repaired="layout-elastic"]');
+  function revert(options = {}) {
+    const doc = options.doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+
+    const repaired = doc.querySelectorAll('[data-ab-repaired="layout-elastic"]');
     repaired.forEach(el => {
       // Restore height
       if (el.dataset.abOriginalInlineHeight === '__NONE__') {

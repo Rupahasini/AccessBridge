@@ -88,10 +88,12 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
    * per WCAG 2.2 Accessible Name and Description Computation.
    */
   function hasAccessibleName(el) {
+    const doc = el.ownerDocument || document;
+
     // 1. aria-labelledby
     const labelledby = el.getAttribute('aria-labelledby');
     if (labelledby) {
-      const referenced = labelledby.split(/\s+/).map(id => document.getElementById(id)).filter(Boolean);
+      const referenced = labelledby.split(/\s+/).map(id => doc.getElementById(id)).filter(Boolean);
       const text = referenced.map(r => r.textContent.trim()).join(' ');
       if (text.length > 0) return true;
     }
@@ -117,8 +119,10 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
     // 5. Associated <label> for form controls
     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
       if (el.id) {
-        const explicitLabel = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-        if (explicitLabel && explicitLabel.textContent.trim().length > 0) return true;
+        try {
+          const explicitLabel = doc.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+          if (explicitLabel && explicitLabel.textContent.trim().length > 0) return true;
+        } catch (_) {}
       }
       const parentLabel = el.closest('label');
       if (parentLabel && parentLabel.textContent.trim().length > 0) return true;
@@ -248,13 +252,18 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
    * Main remediation scan
    */
   function repair(options = {}) {
+    const doc = options.doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return { count: 0, modified: [] };
+
     let repairedCount = 0;
     const modifiedElements = [];
 
+    const isIgnored = (el) => Boolean(el.closest && el.closest('[data-ab-ignore]'));
+
     // 1. Remediate Buttons & [role="button"]
-    const buttons = document.querySelectorAll('button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"]');
+    const buttons = doc.querySelectorAll('button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"]');
     buttons.forEach(el => {
-      if (el.dataset.abRepaired) return;
+      if (el.dataset.abRepaired || isIgnored(el)) return;
       if (!hasAccessibleName(el)) {
         // Step 1: Attribute title/alt
         let label = el.getAttribute('title') || el.getAttribute('alt');
@@ -280,14 +289,23 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
         el.dataset.abRepaired = 'aria-button';
         el.setAttribute('aria-label', label);
         repairedCount++;
-        modifiedElements.push({ el, type: 'aria-button', label });
+        modifiedElements.push({
+          el,
+          type: 'aria-button',
+          label,
+          criterion: 'WCAG 4.1.2 Name, Role, Value',
+          issue: 'Interactive button missing accessible name',
+          fix: `Assigned aria-label="${label}" inferred from icon/context`,
+          tag: el.tagName.toLowerCase(),
+          selector: el.className ? `${el.tagName.toLowerCase()}.${el.className.split(' ').join('.')}` : el.tagName.toLowerCase()
+        });
       }
     });
 
     // 2. Remediate Links with no text
-    const links = document.querySelectorAll('a[href]');
+    const links = doc.querySelectorAll('a[href]');
     links.forEach(el => {
-      if (el.dataset.abRepaired) return;
+      if (el.dataset.abRepaired || isIgnored(el)) return;
       if (!hasAccessibleName(el)) {
         let label = el.getAttribute('title');
         if (!label) label = inferFromContext(el);
@@ -299,14 +317,23 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
         el.dataset.abRepaired = 'aria-link';
         el.setAttribute('aria-label', label);
         repairedCount++;
-        modifiedElements.push({ el, type: 'aria-link', label });
+        modifiedElements.push({
+          el,
+          type: 'aria-link',
+          label,
+          criterion: 'WCAG 2.4.4 Link Purpose (In Context)',
+          issue: 'Navigation link missing descriptive label',
+          fix: `Assigned aria-label="${label}" inferred from href/destination`,
+          tag: 'a',
+          selector: el.className ? `a.${el.className.split(' ').join('.')}` : 'a'
+        });
       }
     });
 
     // 3. Remediate Unlabeled Form Controls (with strict privacy guard)
-    const inputs = document.querySelectorAll('input:not([type="hidden"]), textarea, select');
+    const inputs = doc.querySelectorAll('input:not([type="hidden"]), textarea, select');
     inputs.forEach(el => {
-      if (el.dataset.abRepaired) return;
+      if (el.dataset.abRepaired || isIgnored(el)) return;
       if (hasAccessibleName(el)) return;
 
       // Privacy Check: DO NOT read value, but DO provide an accessible name for screen readers
@@ -317,7 +344,16 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
         el.dataset.abRepaired = 'aria-form';
         el.setAttribute('aria-label', secureLabel);
         repairedCount++;
-        modifiedElements.push({ el, type: 'aria-form', label: secureLabel });
+        modifiedElements.push({
+          el,
+          type: 'aria-form',
+          label: secureLabel,
+          criterion: 'WCAG 3.3.2 Labels or Instructions',
+          issue: 'Sensitive form control missing label',
+          fix: `Assigned aria-label="${secureLabel}" with privacy shielding`,
+          tag: el.tagName.toLowerCase(),
+          selector: el.name ? `${el.tagName.toLowerCase()}[name="${el.name}"]` : el.tagName.toLowerCase()
+        });
         return;
       }
 
@@ -341,13 +377,22 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
       el.dataset.abRepaired = 'aria-form';
       el.setAttribute('aria-label', label);
       repairedCount++;
-      modifiedElements.push({ el, type: 'aria-form', label });
+      modifiedElements.push({
+        el,
+        type: 'aria-form',
+        label,
+        criterion: 'WCAG 3.3.2 Labels or Instructions',
+        issue: 'Form input missing associated <label>',
+        fix: `Assigned aria-label="${label}" inferred from placeholder/attributes`,
+        tag: el.tagName.toLowerCase(),
+        selector: el.name ? `${el.tagName.toLowerCase()}[name="${el.name}"]` : el.tagName.toLowerCase()
+      });
     });
 
     // 4. Remediate Images Missing Alt
-    const images = document.querySelectorAll('img');
+    const images = doc.querySelectorAll('img');
     images.forEach(img => {
-      if (img.dataset.abRepaired) return;
+      if (img.dataset.abRepaired || isIgnored(img)) return;
 
       // Has alt attribute (even alt="" for decorative)
       const altAttr = img.getAttribute('alt');
@@ -366,7 +411,16 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
         img.setAttribute('alt', '');
         img.setAttribute('role', 'presentation');
         repairedCount++;
-        modifiedElements.push({ el: img, type: 'aria-img-decorative', label: 'Decorative' });
+        modifiedElements.push({
+          el: img,
+          type: 'aria-img-decorative',
+          label: 'Decorative',
+          criterion: 'WCAG 1.1.1 Non-text Content',
+          issue: 'Decorative or miniature image missing alt="" attribute',
+          fix: 'Set alt="" and role="presentation" to silence from screen readers',
+          tag: 'img',
+          selector: 'img[alt=""]'
+        });
         return;
       }
 
@@ -396,10 +450,19 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
       img.dataset.abRepaired = 'aria-img';
       img.setAttribute('alt', altText);
       repairedCount++;
-      modifiedElements.push({ el: img, type: 'aria-img', label: altText });
+      modifiedElements.push({
+        el: img,
+        type: 'aria-img',
+        label: altText,
+        criterion: 'WCAG 1.1.1 Non-text Content',
+        issue: 'Substantive content image missing alternative text',
+        fix: `Set alt="${altText}" inferred from contextual DOM analysis`,
+        tag: 'img',
+        selector: img.className ? `img.${img.className.split(' ').join('.')}` : 'img'
+      });
 
-      // Optional Gemini Vision enhancement for substantial images
-      if (options.useGemini && chrome.runtime?.sendMessage) {
+      // Optional Gemini Vision enhancement for substantive images
+      if (options.useGemini && typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
         const src = img.src;
         if (src && !src.startsWith('data:') && rect.width >= 40 && rect.height >= 40) {
           chrome.runtime.sendMessage({
@@ -427,8 +490,11 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
   /**
    * Reverts all semantic repairs to pristine original state
    */
-  function revert() {
-    const repaired = document.querySelectorAll('[data-ab-repaired^="aria-"]');
+  function revert(options = {}) {
+    const doc = options.doc || (typeof document !== 'undefined' ? document : null);
+    if (!doc) return;
+
+    const repaired = doc.querySelectorAll('[data-ab-repaired^="aria-"]');
     repaired.forEach(el => {
       const type = el.dataset.abRepaired;
       if (type === 'aria-button' || type === 'aria-link' || type === 'aria-form') {
