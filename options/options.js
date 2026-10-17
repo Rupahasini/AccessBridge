@@ -1,31 +1,33 @@
 /**
  * AccessBridge — Options Controller
- * Orchestrates settings persistence, API connectivity verification,
- * and automated domain administration.
+ * Simple settings manager with instant "Saved" confirmations,
+ * screen reader announcements, and plain-language controls.
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Elements
-  const apiKeyInput = document.getElementById('gemini-api-key');
-  const btnToggleVisibility = document.getElementById('btn-toggle-visibility');
-  const modelSelect = document.getElementById('gemini-model-select');
-  const btnTestConnection = document.getElementById('btn-test-connection');
-  const btnSaveGemini = document.getElementById('btn-save-gemini');
-  const btnClearGemini = document.getElementById('btn-clear-gemini');
-  const connectionStatus = document.getElementById('connection-status');
-
-  const newDomainInput = document.getElementById('new-domain-input');
-  const btnAddDomain = document.getElementById('btn-add-domain');
-  const domainsListEl = document.getElementById('domains-list');
-
+  // Elements: Fixes
   const gateAria = document.getElementById('gate-aria');
   const gateFocus = document.getElementById('gate-focus');
   const gateLayout = document.getElementById('gate-layout');
 
-  const btnFooterDemo = document.getElementById('btn-footer-demo');
+  // Elements: Off Sites
+  const newDomainInput = document.getElementById('new-domain-input');
+  const btnAddDomain = document.getElementById('btn-add-domain');
+  const domainsListEl = document.getElementById('domains-list');
+
+  // Elements: Advanced (Optional)
+  const apiKeyInput = document.getElementById('gemini-api-key');
+  const btnToggleVisibility = document.getElementById('btn-toggle-visibility');
+  const modelSelect = document.getElementById('gemini-model-select');
+  const btnSaveGemini = document.getElementById('btn-save-gemini');
+  const btnClearGemini = document.getElementById('btn-clear-gemini');
+  const connectionStatus = document.getElementById('connection-status');
+
+  const saveToast = document.getElementById('save-toast');
   const announcer = document.getElementById('options-announcer');
 
   let currentDomains = [];
+  let toastTimer = null;
 
   function announce(text) {
     if (announcer) {
@@ -34,47 +36,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function showSavedToast() {
+    if (!saveToast) return;
+    saveToast.hidden = false;
+    saveToast.classList.add('is-visible');
+    announce('Saved');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      saveToast.classList.remove('is-visible');
+      setTimeout(() => { saveToast.hidden = true; }, 250);
+    }, 2000);
+  }
+
   function showStatus(text, isSuccess) {
+    if (!connectionStatus) return;
     connectionStatus.hidden = false;
     connectionStatus.className = `status-banner ${isSuccess ? 'is-success' : 'is-error'}`;
     connectionStatus.textContent = text;
-    announce(text);
   }
 
-  function hideStatus() {
-    connectionStatus.hidden = true;
-    connectionStatus.textContent = '';
-  }
-
-  // Render configured auto-fix domains
   function renderDomains() {
     domainsListEl.innerHTML = '';
     if (!currentDomains || currentDomains.length === 0) {
       const li = document.createElement('li');
-      li.className = 'empty-domain-notice';
-      li.textContent = 'No automatic domains configured yet. Add one above or toggle from popup.';
+      li.className = 'empty-sites-notice';
+      li.textContent = 'AccessBridge is currently on for all websites.';
       domainsListEl.appendChild(li);
       return;
     }
 
     currentDomains.forEach(domain => {
       const li = document.createElement('li');
-      li.className = 'domain-item';
+      li.className = 'site-item';
 
       const span = document.createElement('span');
-      span.className = 'domain-name';
+      span.className = 'site-name';
       span.textContent = domain;
 
       const removeBtn = document.createElement('button');
       removeBtn.type = 'button';
-      removeBtn.className = 'domain-remove-btn';
+      removeBtn.className = 'btn-remove-site';
       removeBtn.textContent = 'Remove';
-      removeBtn.setAttribute('aria-label', `Remove ${domain} from auto-remediation`);
+      removeBtn.setAttribute('aria-label', `Turn AccessBridge back on for ${domain}`);
       removeBtn.addEventListener('click', async () => {
         currentDomains = currentDomains.filter(d => d !== domain);
-        await chrome.storage.sync.set({ autoFixDomains: currentDomains });
+        await chrome.storage.sync.set({ pausedDomains: currentDomains });
         renderDomains();
-        announce(`Removed ${domain} from auto-remediation.`);
+        showSavedToast();
       });
 
       li.appendChild(span);
@@ -83,90 +91,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Load existing settings
+  // Load saved settings
   try {
     const data = await chrome.storage.sync.get([
-      'geminiApiKey',
-      'geminiModel',
-      'autoFixDomains',
       'remediateAria',
       'remediateFocus',
-      'remediateLayout'
+      'remediateLayout',
+      'pausedDomains',
+      'geminiApiKey',
+      'geminiModel'
     ]);
-
-    if (data.geminiApiKey) apiKeyInput.value = data.geminiApiKey;
-    if (data.geminiModel) modelSelect.value = data.geminiModel;
-
-    currentDomains = Array.isArray(data.autoFixDomains) ? data.autoFixDomains : [];
-    renderDomains();
 
     gateAria.checked = data.remediateAria !== false;
     gateFocus.checked = data.remediateFocus !== false;
     gateLayout.checked = data.remediateLayout !== false;
+
+    currentDomains = Array.isArray(data.pausedDomains) ? data.pausedDomains : [];
+    renderDomains();
+
+    if (data.geminiApiKey) apiKeyInput.value = data.geminiApiKey;
+    if (data.geminiModel) modelSelect.value = data.geminiModel;
   } catch (err) {
     console.error('Failed to load settings:', err);
   }
 
-  // Toggle API key password masking
-  btnToggleVisibility.addEventListener('click', () => {
-    const isPassword = apiKeyInput.type === 'password';
-    apiKeyInput.type = isPassword ? 'text' : 'password';
-    btnToggleVisibility.textContent = isPassword ? 'Hide' : 'Show';
-    btnToggleVisibility.setAttribute('aria-label', isPassword ? 'Hide API key in plain text' : 'Show API key in plain text');
+  // Fixes checkbox listeners
+  gateAria.addEventListener('change', async () => {
+    await chrome.storage.sync.set({ remediateAria: gateAria.checked });
+    showSavedToast();
   });
 
-  // Test Connection
-  btnTestConnection.addEventListener('click', async () => {
-    const key = apiKeyInput.value.trim();
-    const model = modelSelect.value;
-
-    if (!key) {
-      showStatus('Please provide an API key before testing.', false);
-      return;
-    }
-
-    showStatus('Verifying connectivity to Google Gemini API...', true);
-    btnTestConnection.disabled = true;
-
-    try {
-      chrome.runtime.sendMessage({
-        type: 'TEST_GEMINI_KEY',
-        payload: { apiKey: key, model }
-      }, response => {
-        btnTestConnection.disabled = false;
-        if (response && response.success) {
-          showStatus(`✓ Connection successful! Model (${response.model}) replied: "${response.sample}"`, true);
-        } else {
-          showStatus(`✗ Connection failed: ${response?.error || 'Unknown error'}`, false);
-        }
-      });
-    } catch (err) {
-      btnTestConnection.disabled = false;
-      showStatus(`Test failed: ${err.message}`, false);
-    }
+  gateFocus.addEventListener('change', async () => {
+    await chrome.storage.sync.set({ remediateFocus: gateFocus.checked });
+    showSavedToast();
   });
 
-  // Save Key
-  btnSaveGemini.addEventListener('click', async () => {
-    const key = apiKeyInput.value.trim();
-    const model = modelSelect.value;
-
-    await chrome.storage.sync.set({
-      geminiApiKey: key,
-      geminiModel: model
-    });
-
-    showStatus('Gemini settings saved successfully.', true);
+  gateLayout.addEventListener('change', async () => {
+    await chrome.storage.sync.set({ remediateLayout: gateLayout.checked });
+    showSavedToast();
   });
 
-  // Clear Key
-  btnClearGemini.addEventListener('click', async () => {
-    apiKeyInput.value = '';
-    await chrome.storage.sync.set({ geminiApiKey: '' });
-    showStatus('Gemini API key cleared. Reverting to local heuristic mode.', true);
-  });
-
-  // Add Domain
+  // Add site to off list
   btnAddDomain.addEventListener('click', async () => {
     const raw = newDomainInput.value.trim();
     if (!raw) return;
@@ -184,10 +149,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!currentDomains.includes(cleanDomain)) {
       currentDomains.push(cleanDomain);
-      await chrome.storage.sync.set({ autoFixDomains: currentDomains });
+      await chrome.storage.sync.set({ pausedDomains: currentDomains });
       newDomainInput.value = '';
       renderDomains();
-      announce(`Added ${cleanDomain} to auto-remediation.`);
+      showSavedToast();
     } else {
       announce(`${cleanDomain} is already in the list.`);
     }
@@ -200,22 +165,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Subsystem Checkbox Gates
-  gateAria.addEventListener('change', async () => {
-    await chrome.storage.sync.set({ remediateAria: gateAria.checked });
+  // Toggle API key visibility
+  btnToggleVisibility.addEventListener('click', () => {
+    const isPassword = apiKeyInput.type === 'password';
+    apiKeyInput.type = isPassword ? 'text' : 'password';
+    btnToggleVisibility.textContent = isPassword ? 'Hide' : 'Show';
+    btnToggleVisibility.setAttribute('aria-label', isPassword ? 'Hide API key in plain text' : 'Show API key in plain text');
   });
 
-  gateFocus.addEventListener('change', async () => {
-    await chrome.storage.sync.set({ remediateFocus: gateFocus.checked });
+  // Save optional key
+  btnSaveGemini.addEventListener('click', async () => {
+    const key = apiKeyInput.value.trim();
+    const model = modelSelect.value;
+
+    await chrome.storage.sync.set({
+      geminiApiKey: key,
+      geminiModel: model
+    });
+
+    showSavedToast();
+    showStatus(key ? 'Key saved.' : 'Saved without an API key.', true);
   });
 
-  gateLayout.addEventListener('change', async () => {
-    await chrome.storage.sync.set({ remediateLayout: gateLayout.checked });
-  });
-
-  // Footer Demo Button
-  btnFooterDemo.addEventListener('click', () => {
-    const demoUrl = chrome.runtime.getURL('demo.html');
-    chrome.tabs.create({ url: demoUrl });
+  // Clear optional key
+  btnClearGemini.addEventListener('click', async () => {
+    apiKeyInput.value = '';
+    await chrome.storage.sync.set({ geminiApiKey: '' });
+    showSavedToast();
+    showStatus('Key cleared.', true);
   });
 });

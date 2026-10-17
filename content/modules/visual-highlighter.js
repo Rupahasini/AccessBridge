@@ -23,14 +23,14 @@ window.AccessBridgeModules.VisualHighlighter = (function() {
       let badgeText = '';
 
       if (type.startsWith('aria-')) {
-        const name = el.getAttribute('aria-label') || el.getAttribute('alt') || 'Accessible Name';
-        badgeText = `ARIA: "${name.length > 25 ? name.slice(0, 22) + '...' : name}"`;
+        const name = el.getAttribute('aria-label') || el.getAttribute('alt') || 'Name added';
+        badgeText = `Name: "${name.length > 25 ? name.slice(0, 22) + '...' : name}"`;
       } else if (type === 'focus-clickable') {
         badgeText = 'Keyboard: Tab + Enter/Space';
       } else if (type === 'focus-skip-link') {
-        badgeText = 'Skip Link: Landmark Bypass';
+        badgeText = 'Jump to main content link';
       } else if (type === 'layout-elastic') {
-        badgeText = 'Layout: Elastic Reflow';
+        badgeText = 'Text resizing fix';
       }
 
       el.setAttribute('data-ab-badge', badgeText);

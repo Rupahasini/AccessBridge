@@ -1,8 +1,8 @@
 /**
  * AccessBridge — Core Engine Orchestrator
  * Coordinates Semantic & ARIA Fixer, Focus Tree Rebuilder, Layout Elasticizer,
- * and Visual Highlighter. Manages live MutationObserver, Before/After states,
- * extension popup messaging, and standalone web-app invocation.
+ * and Visual Highlighter. Manages live MutationObserver, persistent active state across
+ * all browsing tabs, extension popup messaging, and text extraction for speech reading.
  */
 
 (function() {
@@ -32,8 +32,9 @@
     issues: [],
     lastReport: [],
     domain: (typeof window !== 'undefined' && window.location?.hostname) || 'local',
-    autoFixThisDomain: false,
-    hasGeminiKey: false
+    pausedThisDomain: false,
+    hasGeminiKey: false,
+    isSpeaking: false
   };
 
   let mutationObserver = null;
@@ -86,11 +87,17 @@
   async function runRepairs(options = {}) {
     const doc = options.doc || document;
 
-    // Check if Gemini key is available in sync storage (Chrome extension mode)
+    let syncData = {};
     let useGemini = false;
     try {
       if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
-        const syncData = await chrome.storage.sync.get(['geminiApiKey', 'highlightRepairs']);
+        syncData = await chrome.storage.sync.get([
+          'geminiApiKey',
+          'highlightRepairs',
+          'remediateAria',
+          'remediateFocus',
+          'remediateLayout'
+        ]);
         useGemini = Boolean(syncData.geminiApiKey?.trim());
         state.hasGeminiKey = useGemini;
         if (syncData.highlightRepairs && !state.highlightsActive) {
@@ -100,10 +107,25 @@
       }
     } catch (_) {}
 
-    // Execute modular repair suites
-    const ariaResult = SemanticAriaFixer?.repair({ useGemini, doc }) || { count: 0, modified: [] };
-    const focusResult = FocusTreeRebuilder?.repair({ doc }) || { count: 0, modified: [] };
-    const layoutResult = LayoutElasticizer?.repair({ doc }) || { count: 0, modified: [] };
+    const shouldFixAria = syncData.remediateAria !== false;
+    const shouldFixFocus = syncData.remediateFocus !== false;
+    const shouldFixLayout = syncData.remediateLayout !== false;
+
+    // If an individual module was turned off, revert its previous repairs
+    if (!shouldFixAria) SemanticAriaFixer?.revert({ doc });
+    if (!shouldFixFocus) FocusTreeRebuilder?.revert({ doc });
+    if (!shouldFixLayout) LayoutElasticizer?.revert({ doc });
+
+    // Execute active repair suites
+    const ariaResult = (shouldFixAria && SemanticAriaFixer)
+      ? SemanticAriaFixer.repair({ useGemini, doc })
+      : { count: 0, modified: [] };
+    const focusResult = (shouldFixFocus && FocusTreeRebuilder)
+      ? FocusTreeRebuilder.repair({ doc })
+      : { count: 0, modified: [] };
+    const layoutResult = (shouldFixLayout && LayoutElasticizer)
+      ? LayoutElasticizer.repair({ doc })
+      : { count: 0, modified: [] };
 
     state.stats.ariaCount = ariaResult.count || 0;
     state.stats.focusCount = focusResult.count || 0;
@@ -121,7 +143,7 @@
       VisualHighlighter?.refresh(doc);
     }
 
-    // Notify background service worker to update action badge if in extension context
+    // Notify background service worker to update action badge
     if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
       chrome.runtime.sendMessage({
         type: 'UPDATE_BADGE',
@@ -137,7 +159,7 @@
   }
 
   /**
-   * Reverts all DOM modifications (Before Mode)
+   * Reverts all DOM modifications
    */
   function revertRepairs(options = {}) {
     const doc = options.doc || document;
@@ -153,7 +175,7 @@
     state.stats.totalCount = 0;
     state.issues = [];
 
-    // Reset badge if in extension context
+    // Reset badge in extension context
     if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
       chrome.runtime.sendMessage({
         type: 'UPDATE_BADGE',
@@ -188,7 +210,9 @@
 
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      runRepairs();
+      if (state.active) {
+        runRepairs();
+      }
     }, 250);
   }
 
@@ -212,7 +236,7 @@
   }
 
   /**
-   * Master Before / After activation toggle
+   * Sets active status on the current webpage
    */
   async function setActive(shouldBeActive, options = {}) {
     const doc = options.doc || document;
@@ -221,11 +245,15 @@
     if (state.active) {
       startObserver(doc);
       await runRepairs(options);
-      announce(`AccessBridge active: ${state.stats.totalCount} accessibility barriers remediated.`, doc);
+      if (!options.silent) {
+        announce(`AccessBridge is on: ${state.stats.totalCount} problems fixed on this page.`, doc);
+      }
     } else {
       stopObserver();
       revertRepairs(options);
-      announce('AccessBridge deactivated: original DOM restored.', doc);
+      if (!options.silent) {
+        announce('AccessBridge is off: original page restored.', doc);
+      }
     }
 
     dispatchStateChange();
@@ -233,21 +261,130 @@
   }
 
   /**
-   * Checks storage for automatic domain activation (Chrome extension only)
+   * Extracts clean, accessible text from the remediated page for speech reading
    */
-  async function checkAutoActivation() {
+  function getReadablePageSummary(doc = document) {
+    const mainEl = doc.querySelector('main, [role="main"], article') || doc.body;
+    if (!mainEl) return '';
+
+    const items = [];
+    if (doc.title) {
+      items.push(`Page title: ${doc.title}`);
+    }
+
+    // Traverse visible, substantive elements
+    const elements = mainEl.querySelectorAll('h1, h2, h3, p, button, [role="button"], a[aria-label]');
+    elements.forEach(el => {
+      if (el.closest('[data-ab-ignore]') || el.offsetParent === null) return;
+      
+      // Use remediated accessible label or inner text
+      const ariaLabel = el.getAttribute('aria-label');
+      const text = (ariaLabel || el.innerText || el.textContent || '').trim();
+      
+      if (text.length > 2 && !items.includes(text)) {
+        items.push(text);
+      }
+    });
+
+    return items.slice(0, 100).join('. ');
+  }
+
+  /**
+   * Initializes engine state from chrome.storage.sync
+   */
+  async function initEngine() {
+    setupAnnouncer();
+
     try {
       if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
-        const { autoFixDomains = [], geminiApiKey = '' } = await chrome.storage.sync.get(['autoFixDomains', 'geminiApiKey']);
-        state.hasGeminiKey = Boolean(geminiApiKey?.trim());
+        const data = await chrome.storage.sync.get([
+          'extensionEnabled',
+          'pausedDomains',
+          'geminiApiKey',
+          'highlightRepairs'
+        ]);
 
-        const currentHost = window.location.hostname;
-        if (currentHost && autoFixDomains.includes(currentHost)) {
-          state.autoFixThisDomain = true;
-          await setActive(true);
+        const extensionEnabled = data.extensionEnabled !== false; // Default: true (active across web)
+        const pausedDomains = Array.isArray(data.pausedDomains) ? data.pausedDomains : [];
+        const currentHost = window.location.hostname || '';
+
+        state.domain = currentHost;
+        state.hasGeminiKey = Boolean(data.geminiApiKey?.trim());
+        state.highlightsActive = Boolean(data.highlightRepairs);
+        state.pausedThisDomain = Boolean(currentHost && pausedDomains.includes(currentHost));
+
+        // If extension is globally enabled and current domain is not paused
+        if (extensionEnabled && !state.pausedThisDomain) {
+          await setActive(true, { silent: true });
+        } else {
+          state.active = false;
+          // Update badge to indicate paused
+          if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+            chrome.runtime.sendMessage({
+              type: 'UPDATE_BADGE',
+              payload: { active: false, totalFixed: 0 }
+            }).catch(() => {});
+          }
+          dispatchStateChange();
+        }
+      } else {
+        // Fallback for direct browser execution
+        await setActive(true);
+      }
+    } catch (err) {
+      console.warn('AccessBridge initialization notice:', err);
+      await setActive(true);
+    }
+  }
+
+  /**
+   * Listen for sync storage changes across tabs (e.g. user toggles extension on/off)
+   */
+  if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+    chrome.storage.onChanged.addListener(async (changes, areaName) => {
+      if (areaName !== 'sync') return;
+
+      if (changes.extensionEnabled !== undefined) {
+        const globallyEnabled = changes.extensionEnabled.newValue !== false;
+        if (globallyEnabled && !state.pausedThisDomain) {
+          if (!state.active) await setActive(true);
+        } else {
+          if (state.active) await setActive(false);
         }
       }
-    } catch (_) {}
+
+      if (changes.pausedDomains !== undefined) {
+        const pausedList = Array.isArray(changes.pausedDomains.newValue) ? changes.pausedDomains.newValue : [];
+        state.pausedThisDomain = Boolean(state.domain && pausedList.includes(state.domain));
+
+        const syncData = await chrome.storage.sync.get('extensionEnabled');
+        const globallyEnabled = syncData.extensionEnabled !== false;
+
+        if (globallyEnabled && !state.pausedThisDomain) {
+          if (!state.active) await setActive(true);
+        } else {
+          if (state.active) await setActive(false);
+        }
+      }
+
+      if (changes.highlightRepairs !== undefined) {
+        const hl = Boolean(changes.highlightRepairs.newValue);
+        state.highlightsActive = hl;
+        if (state.active) {
+          VisualHighlighter?.toggle(hl, document);
+        }
+      }
+
+      if (changes.geminiApiKey !== undefined) {
+        state.hasGeminiKey = Boolean(changes.geminiApiKey.newValue?.trim());
+      }
+
+      if (changes.remediateAria !== undefined || changes.remediateFocus !== undefined || changes.remediateLayout !== undefined) {
+        if (state.active) {
+          await runRepairs();
+        }
+      }
+    });
   }
 
   /**
@@ -260,11 +397,18 @@
       switch (request.type) {
         case 'GET_STATUS':
           if (chrome.storage?.sync) {
-            chrome.storage.sync.get(['geminiApiKey', 'autoFixDomains']).then(data => {
+            chrome.storage.sync.get(['extensionEnabled', 'geminiApiKey', 'pausedDomains']).then(data => {
               state.hasGeminiKey = Boolean(data.geminiApiKey?.trim());
-              const domains = data.autoFixDomains || [];
-              state.autoFixThisDomain = Boolean(state.domain && domains.includes(state.domain));
-              sendResponse({ success: true, state });
+              const pausedList = Array.isArray(data.pausedDomains) ? data.pausedDomains : [];
+              state.pausedThisDomain = Boolean(state.domain && pausedList.includes(state.domain));
+              const globallyEnabled = data.extensionEnabled !== false;
+              sendResponse({
+                success: true,
+                state: {
+                  ...state,
+                  globallyEnabled
+                }
+              });
             }).catch(() => {
               sendResponse({ success: true, state });
             });
@@ -273,46 +417,64 @@
           }
           return true;
 
-        case 'TOGGLE_ACTIVE':
-          setActive(request.payload?.active ?? !state.active).then(updatedState => {
-            sendResponse({ success: true, state: updatedState });
-          });
+        case 'TOGGLE_GLOBAL_ACTIVE':
+          (async () => {
+            const nextActive = Boolean(request.payload?.active);
+            await chrome.storage.sync.set({ extensionEnabled: nextActive });
+            if (nextActive && !state.pausedThisDomain) {
+              await setActive(true);
+            } else {
+              await setActive(false);
+            }
+            sendResponse({ success: true, state });
+          })();
+          return true;
+
+        case 'TOGGLE_DOMAIN_PAUSE':
+          (async () => {
+            const host = state.domain;
+            if (!host) {
+              sendResponse({ success: false, error: 'NO_HOSTNAME' });
+              return;
+            }
+            const { pausedDomains = [] } = await chrome.storage.sync.get('pausedDomains');
+            let updatedList = [...pausedDomains];
+            const shouldPause = request.payload?.pause ?? !updatedList.includes(host);
+
+            if (shouldPause && !updatedList.includes(host)) {
+              updatedList.push(host);
+            } else if (!shouldPause) {
+              updatedList = updatedList.filter(d => d !== host);
+            }
+
+            await chrome.storage.sync.set({ pausedDomains: updatedList });
+            state.pausedThisDomain = shouldPause;
+
+            const { extensionEnabled = true } = await chrome.storage.sync.get('extensionEnabled');
+            if (extensionEnabled && !shouldPause) {
+              await setActive(true);
+            } else {
+              await setActive(false);
+            }
+
+            sendResponse({ success: true, pausedThisDomain: shouldPause, state });
+          })();
           return true;
 
         case 'TOGGLE_HIGHLIGHTS':
           const forced = request.payload?.highlight;
           state.highlightsActive = VisualHighlighter?.toggle(forced) ?? false;
+          chrome.storage.sync.set({ highlightRepairs: state.highlightsActive }).catch(() => {});
           dispatchStateChange();
           sendResponse({ success: true, highlightsActive: state.highlightsActive });
           return false;
 
-        case 'TOGGLE_AUTO_FIX':
-          (async () => {
-            const host = window.location.hostname;
-            if (!host) {
-              sendResponse({ success: false, error: 'NO_HOSTNAME' });
-              return;
-            }
-            if (!chrome.storage?.sync) {
-              sendResponse({ success: false, error: 'NO_STORAGE' });
-              return;
-            }
-            const { autoFixDomains = [] } = await chrome.storage.sync.get('autoFixDomains');
-            let updatedList = [...autoFixDomains];
-            const shouldEnable = request.payload?.enable ?? !updatedList.includes(host);
-
-            if (shouldEnable && !updatedList.includes(host)) {
-              updatedList.push(host);
-            } else if (!shouldEnable) {
-              updatedList = updatedList.filter(d => d !== host);
-            }
-
-            await chrome.storage.sync.set({ autoFixDomains: updatedList });
-            state.autoFixThisDomain = shouldEnable;
-            dispatchStateChange();
-            sendResponse({ success: true, autoFixThisDomain: shouldEnable });
-          })();
-          return true;
+        case 'GET_READABLE_TEXT':
+          sendResponse({
+            success: true,
+            text: getReadablePageSummary(document)
+          });
+          return false;
 
         case 'TRIGGER_REMEDIATION':
           if (state.active) {
@@ -328,44 +490,12 @@
     });
   }
 
-  /**
-   * Listen for postMessage commands (useful for sandboxed iframes)
-   */
-  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-    window.addEventListener('message', async (event) => {
-      if (!event.data || typeof event.data !== 'object') return;
-      if (event.data.type === 'AB_SET_ACTIVE') {
-        const nextState = await setActive(Boolean(event.data.active));
-        if (event.source && typeof event.source.postMessage === 'function') {
-          event.source.postMessage({
-            type: 'AB_STATE_UPDATE',
-            state: window.AccessBridge.getState()
-          }, '*');
-        }
-      } else if (event.data.type === 'AB_GET_STATE') {
-        if (event.source && typeof event.source.postMessage === 'function') {
-          event.source.postMessage({
-            type: 'AB_STATE_UPDATE',
-            state: window.AccessBridge.getState()
-          }, '*');
-        }
-      } else if (event.data.type === 'AB_TOGGLE_HIGHLIGHTS') {
-        window.AccessBridge.toggleHighlights(event.data.highlight);
-        if (event.source && typeof event.source.postMessage === 'function') {
-          event.source.postMessage({
-            type: 'AB_STATE_UPDATE',
-            state: window.AccessBridge.getState()
-          }, '*');
-        }
-      }
-    });
-  }
-
   // Public Web API exposed on window.AccessBridge
   window.AccessBridge = {
     setActive,
     runRepairs,
     revertRepairs,
+    getReadablePageSummary,
     toggleHighlights: (forced, doc = document) => {
       state.highlightsActive = VisualHighlighter?.toggle(forced, doc) ?? false;
       dispatchStateChange();
@@ -381,16 +511,14 @@
     modules: window.AccessBridgeModules
   };
 
-  // Initial setup
+  // Initial execution
   if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        setupAnnouncer();
-        checkAutoActivation();
+        initEngine();
       });
     } else {
-      setupAnnouncer();
-      checkAutoActivation();
+      initEngine();
     }
   }
 })();

@@ -1,36 +1,26 @@
 /**
  * AccessBridge — Popup Controller Script
- * Manages communication with active tab content script, telemetry telemetry rendering,
- * and user preference updates.
+ * Plain-language controller for single-site toggle, summary of fixes,
+ * highlight toggle, and options link.
+ * Safe messaging with lastError checks, URL validation, and auto-injection retry.
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Elements
-  const masterToggle = document.getElementById('master-toggle');
-  const beacon = document.getElementById('status-beacon');
-  const beaconText = document.getElementById('beacon-text');
-  const rockerCaption = document.getElementById('rocker-status-caption');
-  const readoutSection = document.querySelector('.readout-section');
+  const siteToggle = document.getElementById('site-toggle');
+  const siteToggleLabel = document.getElementById('site-toggle-label');
 
-  const totalCountEl = document.getElementById('total-count');
-  const ariaCountEl = document.getElementById('aria-count');
-  const focusCountEl = document.getElementById('focus-count');
-  const layoutCountEl = document.getElementById('layout-count');
+  const summaryLine = document.getElementById('summary-line');
+  const fixLineNames = document.getElementById('fix-line-names');
+  const fixLineKeyboard = document.getElementById('fix-line-keyboard');
+  const fixLineText = document.getElementById('fix-line-text');
 
   const toggleHighlights = document.getElementById('toggle-highlights');
-  const toggleAutofix = document.getElementById('toggle-autofix');
-  const domainSubtext = document.getElementById('domain-subtext');
-
-  const aiBanner = document.getElementById('ai-banner');
-  const aiStatusText = document.getElementById('ai-status-text');
-  const aiDetail = document.getElementById('ai-detail');
-  const btnConfigureKey = document.getElementById('btn-configure-key');
-
-  const btnOpenDemo = document.getElementById('btn-open-demo');
-  const btnOpenOptions = document.getElementById('btn-open-options');
+  const btnMoreSettings = document.getElementById('btn-more-settings');
   const announcer = document.getElementById('popup-announcer');
 
   let activeTabId = null;
+  let currentUrl = '';
   let currentHost = '';
 
   function announce(text) {
@@ -40,154 +30,286 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function formatNumber(n) {
-    const val = Number(n) || 0;
-    return val < 10 ? `0${val}` : `${val}`;
+  /**
+   * Safe wrapper around chrome.tabs.sendMessage that always reads
+   * chrome.runtime.lastError to prevent "Unchecked runtime.lastError" logs.
+   */
+  function sendTabMessage(tabId, message) {
+    return new Promise((resolve) => {
+      try {
+        chrome.tabs.sendMessage(tabId, message, (response) => {
+          const err = chrome.runtime.lastError; // Must read immediately to mark checked!
+          if (err) {
+            resolve({ success: false, error: err.message || 'NO_RESPONSE' });
+          } else {
+            resolve(response || { success: true });
+          }
+        });
+      } catch (ex) {
+        resolve({ success: false, error: ex.message || 'EXCEPTION' });
+      }
+    });
+  }
+
+  /**
+   * Validates if a tab is a standard web page (http:// or https://)
+   * where extensions are permitted to execute.
+   */
+  function isSupportedUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) return false;
+
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      if (host === 'chromewebstore.google.com' || host === 'chrome.google.com') {
+        return false;
+      }
+    } catch (_) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Re-injects content scripts and stylesheet if receiving end does not exist.
+   */
+  async function injectContentScripts(tabId) {
+    try {
+      if (!chrome.scripting || !chrome.scripting.executeScript) return false;
+
+      await chrome.scripting.insertCSS({
+        target: { tabId },
+        files: ['content/content.css']
+      }).catch(() => {});
+
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: [
+          'content/modules/semantic-aria-fixer.js',
+          'content/modules/focus-tree-rebuilder.js',
+          'content/modules/layout-elasticizer.js',
+          'content/modules/visual-highlighter.js',
+          'content/core-engine.js'
+        ]
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Sends a message to a tab, retrying once after injecting scripts if needed.
+   */
+  async function sendTabMessageWithRetry(tabId, message) {
+    let res = await sendTabMessage(tabId, message);
+    if (!res.success && res.error && res.error.includes('Receiving end does not exist')) {
+      const injected = await injectContentScripts(tabId);
+      if (injected) {
+        await new Promise(r => setTimeout(r, 80));
+        res = await sendTabMessage(tabId, message);
+      }
+    }
+    return res;
+  }
+
+  function showUnsupportedPage() {
+    siteToggle.checked = false;
+    siteToggle.disabled = true;
+    toggleHighlights.disabled = true;
+    siteToggleLabel.textContent = "AccessBridge can't run on this page.";
+    summaryLine.textContent = "AccessBridge can't run on this page.";
+    fixLineNames.hidden = true;
+    fixLineKeyboard.hidden = true;
+    fixLineText.hidden = true;
+  }
+
+  function showNeedsReload() {
+    siteToggle.checked = false;
+    siteToggle.disabled = true;
+    toggleHighlights.disabled = true;
+    siteToggleLabel.textContent = 'AccessBridge is ready to start';
+    summaryLine.textContent = 'Reload this page to start AccessBridge';
+    fixLineNames.hidden = true;
+    fixLineKeyboard.hidden = true;
+    fixLineText.hidden = true;
   }
 
   function renderState(state) {
     if (!state) return;
 
-    const isActive = Boolean(state.active);
-    masterToggle.setAttribute('aria-checked', isActive ? 'true' : 'false');
+    siteToggle.disabled = false;
+    toggleHighlights.disabled = false;
 
-    if (isActive) {
-      beacon.classList.add('is-active');
-      beaconText.textContent = 'ACTIVE';
-      beacon.setAttribute('aria-label', 'Engine status: Active');
-      rockerCaption.textContent = 'Webpage remediated for screen reader, keyboard, & zoom.';
-      readoutSection.classList.add('is-active');
-    } else {
-      beacon.classList.remove('is-active');
-      beaconText.textContent = 'IDLE';
-      beacon.setAttribute('aria-label', 'Engine status: Idle');
-      rockerCaption.textContent = 'Currently displaying unassisted webpage DOM.';
-      readoutSection.classList.remove('is-active');
-    }
+    const isDomainPaused = Boolean(state.pausedThisDomain);
+    const isGloballyEnabled = state.globallyEnabled !== false;
+    const isSiteOn = isGloballyEnabled && !isDomainPaused;
 
-    // Counts
-    const stats = state.stats || {};
-    totalCountEl.textContent = formatNumber(stats.totalCount || 0);
-    ariaCountEl.textContent = formatNumber(stats.ariaCount || 0);
-    focusCountEl.textContent = formatNumber(stats.focusCount || 0);
-    layoutCountEl.textContent = formatNumber(stats.layoutCount || 0);
+    // Main Switch
+    siteToggle.checked = isSiteOn;
+    siteToggle.setAttribute('aria-checked', isSiteOn ? 'true' : 'false');
+    siteToggleLabel.textContent = isSiteOn
+      ? 'AccessBridge is ON for this site'
+      : 'AccessBridge is OFF for this site';
 
-    // Switches
+    // Highlight toggle
     toggleHighlights.checked = Boolean(state.highlightsActive);
-    toggleAutofix.checked = Boolean(state.autoFixThisDomain);
+    toggleHighlights.setAttribute('aria-checked', Boolean(state.highlightsActive) ? 'true' : 'false');
 
-    if (state.domain) {
-      domainSubtext.textContent = `Always active on ${state.domain}`;
+    // If site is turned off
+    if (!isSiteOn) {
+      summaryLine.textContent = 'Nothing to fix on this page';
+      fixLineNames.hidden = true;
+      fixLineKeyboard.hidden = true;
+      fixLineText.hidden = true;
+      return;
     }
 
-    // AI Status
-    if (state.hasGeminiKey) {
-      aiBanner.classList.add('is-connected');
-      aiStatusText.textContent = 'Gemini Multimodal: Connected';
-      aiDetail.textContent = 'Neural alt-text active for substantive images';
+    // Site is ON: calculate fixes
+    const stats = state.stats || {};
+    const total = Number(stats.totalCount) || 0;
+    const namesCount = Number(stats.ariaCount) || 0;
+    const keyboardCount = Number(stats.focusCount) || 0;
+    const textCount = Number(stats.layoutCount) || 0;
+
+    if (total === 0) {
+      summaryLine.textContent = 'Nothing to fix on this page';
+      fixLineNames.hidden = true;
+      fixLineKeyboard.hidden = true;
+      fixLineText.hidden = true;
     } else {
-      aiBanner.classList.remove('is-connected');
-      aiStatusText.textContent = 'Gemini Multimodal: Offline';
-      aiDetail.textContent = 'Using deterministic local heuristics';
+      summaryLine.textContent = total === 1
+        ? 'Fixed 1 problem on this page'
+        : `Fixed ${total} problems on this page`;
+
+      // 1. Names for buttons and images
+      if (namesCount > 0) {
+        fixLineNames.hidden = false;
+        fixLineNames.textContent = namesCount === 1
+          ? 'Added names to 1 button or image'
+          : `Added names to ${namesCount} buttons and images`;
+      } else {
+        fixLineNames.hidden = true;
+      }
+
+      // 2. Usable with keyboard
+      if (keyboardCount > 0) {
+        fixLineKeyboard.hidden = false;
+        fixLineKeyboard.textContent = keyboardCount === 1
+          ? 'Made 1 item usable with the keyboard'
+          : `Made ${keyboardCount} items usable with the keyboard`;
+      } else {
+        fixLineKeyboard.hidden = true;
+      }
+
+      // 3. Enlarged text cutoffs
+      if (textCount > 0) {
+        fixLineText.hidden = false;
+        fixLineText.textContent = textCount === 1
+          ? 'Fixed 1 area that cut off enlarged text'
+          : `Fixed ${textCount} areas that cut off enlarged text`;
+      } else {
+        fixLineText.hidden = true;
+      }
     }
   }
 
   // Query active tab
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && tab.id) {
-      activeTabId = tab.id;
-      if (tab.url) {
-        try {
-          const parsed = new URL(tab.url);
-          currentHost = parsed.hostname;
-          if (currentHost) {
-            domainSubtext.textContent = `Always active on ${currentHost}`;
-          }
-        } catch (_) {}
-      }
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => []);
+    const tab = tabs && tabs[0];
 
-      // Fetch status from content script
-      chrome.tabs.sendMessage(activeTabId, { type: 'GET_STATUS' }, response => {
-        if (chrome.runtime.lastError || !response || !response.success) {
-          // Tab may not have content script (e.g. chrome:// page or fresh tab)
-          rockerCaption.textContent = 'Navigate to any webpage or Test Lab to activate.';
-          return;
-        }
-        renderState(response.state);
-      });
+    if (!tab || !tab.id) {
+      showUnsupportedPage();
+      return;
+    }
+
+    activeTabId = tab.id;
+    currentUrl = tab.url || '';
+
+    // Check URL: Must start with http:// or https:// and not be restricted
+    if (!isSupportedUrl(currentUrl)) {
+      showUnsupportedPage();
+      return;
+    }
+
+    try {
+      currentHost = new URL(currentUrl).hostname;
+    } catch (_) {}
+
+    // Fetch status from active tab with re-injection retry
+    const response = await sendTabMessageWithRetry(activeTabId, { type: 'GET_STATUS' });
+
+    if (response.success && response.state) {
+      renderState(response.state);
+    } else {
+      showNeedsReload();
     }
   } catch (err) {
-    console.warn('AccessBridge popup initialization notice:', err);
+    showNeedsReload();
   }
 
-  // Master Rocker Toggle
-  masterToggle.addEventListener('click', () => {
-    if (!activeTabId) return;
+  // Toggle On/Off for this site
+  siteToggle.addEventListener('change', async () => {
+    if (!isSupportedUrl(currentUrl) || !activeTabId) return;
 
-    const currentCheck = masterToggle.getAttribute('aria-checked') === 'true';
-    const nextCheck = !currentCheck;
+    const shouldBeOn = siteToggle.checked;
+    siteToggleLabel.textContent = shouldBeOn
+      ? 'AccessBridge is ON for this site'
+      : 'AccessBridge is OFF for this site';
 
-    chrome.tabs.sendMessage(activeTabId, {
-      type: 'TOGGLE_ACTIVE',
-      payload: { active: nextCheck }
-    }, response => {
-      if (response && response.success) {
-        renderState(response.state);
-        announce(nextCheck
-          ? `AccessBridge activated. ${response.state?.stats?.totalCount || 0} barriers bridged.`
-          : 'AccessBridge deactivated. Original page restored.'
-        );
+    // Save On/Off state in chrome.storage.local
+    try {
+      const localData = await chrome.storage.local.get('pausedDomains');
+      let pausedDomains = Array.isArray(localData.pausedDomains) ? localData.pausedDomains : [];
+      if (shouldBeOn) {
+        pausedDomains = pausedDomains.filter(d => d !== currentHost);
+      } else {
+        if (!pausedDomains.includes(currentHost)) {
+          pausedDomains.push(currentHost);
+        }
       }
-    });
-  });
+      await chrome.storage.local.set({
+        pausedDomains,
+        extensionEnabled: true
+      });
+    } catch (_) {}
 
-  // Keyboard accessibility for Master Rocker Toggle (Enter & Space)
-  masterToggle.addEventListener('keydown', (e) => {
-    if (e.key === ' ' || e.key === 'Enter') {
-      e.preventDefault();
-      masterToggle.click();
+    const response = await sendTabMessageWithRetry(activeTabId, {
+      type: 'TOGGLE_DOMAIN_PAUSE',
+      payload: { pause: !shouldBeOn }
+    });
+
+    if (response.success && response.state) {
+      renderState(response.state);
+      announce(shouldBeOn ? 'AccessBridge is ON for this site' : 'AccessBridge is OFF for this site');
+    } else {
+      announce(shouldBeOn ? 'AccessBridge is ON for this site' : 'AccessBridge is OFF for this site');
     }
   });
 
-  // Visual Highlights Switch
-  toggleHighlights.addEventListener('change', () => {
-    if (!activeTabId) return;
-    chrome.tabs.sendMessage(activeTabId, {
-      type: 'TOGGLE_HIGHLIGHTS',
-      payload: { highlight: toggleHighlights.checked }
-    }, response => {
-      if (response && response.success) {
-        announce(toggleHighlights.checked ? 'Diagnostic visual highlights enabled.' : 'Visual highlights disabled.');
-      }
-    });
-  });
+  // Toggle Highlight Fixes
+  toggleHighlights.addEventListener('change', async () => {
+    if (!isSupportedUrl(currentUrl) || !activeTabId) return;
 
-  // Auto-Fix Domain Switch
-  toggleAutofix.addEventListener('change', () => {
-    if (!activeTabId) return;
-    chrome.tabs.sendMessage(activeTabId, {
-      type: 'TOGGLE_AUTO_FIX',
-      payload: { enable: toggleAutofix.checked }
-    }, response => {
-      if (response && response.success) {
-        announce(toggleAutofix.checked ? `Auto-repair enabled for ${currentHost}.` : `Auto-repair disabled for ${currentHost}.`);
-      }
+    const isHighlighted = toggleHighlights.checked;
+
+    try {
+      await chrome.storage.local.set({ highlightRepairs: isHighlighted });
+    } catch (_) {}
+
+    const response = await sendTabMessageWithRetry(activeTabId, {
+      type: 'TOGGLE_HIGHLIGHTS',
+      payload: { highlight: isHighlighted }
     });
+
+    if (response.success) {
+      announce(isHighlighted ? 'Fixes outlined on page' : 'Outlines turned off');
+    }
   });
 
   // Open Options Page
-  btnConfigureKey.addEventListener('click', () => {
+  btnMoreSettings.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
-  });
-
-  btnOpenOptions.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
-  });
-
-  // Launch Demo Test Lab in new tab
-  btnOpenDemo.addEventListener('click', () => {
-    const demoUrl = chrome.runtime.getURL('demo.html');
-    chrome.tabs.create({ url: demoUrl });
   });
 });

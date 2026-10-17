@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "AccessBridge — Real-Time WCAG Remediation",
+  "name": "AccessBridge",
   "short_name": "AccessBridge",
   "version": "1.0.0",
-  "description": "Manifest V3 real-time accessibility repair engine. Infers semantic ARIA labels, unblocks keyboard focus, and elasticizes rigid layouts for WCAG 2.2 AA compliance.",
+  "description": "Makes websites easier to use with a keyboard, a screen reader, or larger text.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -18,7 +18,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "AccessBridge Instrument Controller"
+    "default_title": "AccessBridge"
   },
   "options_page": "options/options.html",
   "background": {
@@ -26,7 +26,9 @@
   },
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "scripting",
+    "tts"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -48,9 +50,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "icons/*",
-        "demo.html",
-        "paste.html"
+        "icons/*"
       ],
       "matches": ["<all_urls>"]
     }

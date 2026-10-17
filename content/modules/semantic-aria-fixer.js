@@ -465,18 +465,22 @@ window.AccessBridgeModules.SemanticAriaFixer = (function() {
       if (options.useGemini && typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
         const src = img.src;
         if (src && !src.startsWith('data:') && rect.width >= 40 && rect.height >= 40) {
-          chrome.runtime.sendMessage({
-            type: 'CALL_GEMINI_VISION',
-            payload: {
-              imageUrl: src,
-              contextHint: altText
-            }
-          }, response => {
-            if (response && response.success && response.altText) {
-              img.setAttribute('alt', response.altText);
-              img.dataset.abGeminiCaption = 'true';
-            }
-          });
+          try {
+            chrome.runtime.sendMessage({
+              type: 'CALL_GEMINI_VISION',
+              payload: {
+                imageUrl: src,
+                contextHint: altText
+              }
+            }, response => {
+              const _err = chrome.runtime.lastError; // Read immediately to prevent unchecked error logs
+              if (_err) return;
+              if (response && response.success && response.altText) {
+                img.setAttribute('alt', response.altText);
+                img.dataset.abGeminiCaption = 'true';
+              }
+            });
+          } catch (_) {}
         }
       }
     });

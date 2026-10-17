@@ -1,14 +1,16 @@
 /**
  * AccessBridge — Background Service Worker (Manifest V3)
- * Orchestrates multimodal Gemini captioning, badge instrumentation, and settings sync.
+ * Orchestrates multimodal Gemini captioning, badge instrumentation,
+ * global extension persistence, and native text-to-speech reading.
  */
 
 // Initialize default storage on install
 chrome.runtime.onInstalled.addListener(async (details) => {
   const defaults = {
+    extensionEnabled: true,
+    pausedDomains: [],
     geminiApiKey: '',
     geminiModel: 'gemini-2.0-flash',
-    autoFixDomains: [],
     highlightRepairs: false,
     remediateAria: true,
     remediateFocus: true,
@@ -54,6 +56,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
       return false;
 
+    case 'START_TTS':
+      handleStartTTS(message.payload)
+        .then(res => sendResponse(res))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+
+    case 'STOP_TTS':
+      handleStopTTS();
+      sendResponse({ success: true });
+      return false;
+
+    case 'GET_TTS_STATUS':
+      handleGetTTSStatus().then(res => sendResponse(res));
+      return true;
+
     case 'OPEN_TAB':
       if (message.payload?.url) {
         chrome.tabs.create({ url: message.payload.url });
@@ -66,8 +83,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// Tab update listener to maintain badge accuracy across tab navigations
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url && !tab.url.startsWith('chrome://')) {
+    chrome.storage.sync.get(['extensionEnabled', 'pausedDomains'], (data) => {
+      const globallyEnabled = data.extensionEnabled !== false;
+      let isPaused = false;
+      try {
+        const domain = new URL(tab.url).hostname;
+        const pausedList = Array.isArray(data.pausedDomains) ? data.pausedDomains : [];
+        isPaused = pausedList.includes(domain);
+      } catch (_) {}
+
+      if (!globallyEnabled || isPaused) {
+        handleBadgeUpdate(tabId, { active: false, totalFixed: 0 });
+      }
+    });
+  }
+});
+
 /**
- * Updates extension action badge for the active tab
+ * Updates extension action badge for a tab
  */
 function handleBadgeUpdate(tabId, payload) {
   if (!tabId || !chrome.action) return;
@@ -76,12 +112,76 @@ function handleBadgeUpdate(tabId, payload) {
   if (active && totalFixed > 0) {
     chrome.action.setBadgeText({ tabId, text: String(totalFixed > 99 ? '99+' : totalFixed) });
     chrome.action.setBadgeBackgroundColor({ tabId, color: '#0B5FFF' });
-  } else if (active && totalFixed === 0) {
+    chrome.action.setTitle({ tabId, title: `AccessBridge: ${totalFixed} problems fixed (On)` });
+  } else if (active) {
     chrome.action.setBadgeText({ tabId, text: '✓' });
     chrome.action.setBadgeBackgroundColor({ tabId, color: '#0B5FFF' });
+    chrome.action.setTitle({ tabId, title: 'AccessBridge: On' });
   } else {
-    chrome.action.setBadgeText({ tabId, text: '' });
+    chrome.action.setBadgeText({ tabId, text: 'OFF' });
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#C2410C' });
+    chrome.action.setTitle({ tabId, title: 'AccessBridge: Off' });
   }
+}
+
+/**
+ * Starts native Chrome Text-to-Speech reading
+ */
+async function handleStartTTS(payload) {
+  const text = payload?.text?.trim();
+  if (!text) {
+    return { success: false, error: 'NO_TEXT' };
+  }
+
+  if (!chrome.tts) {
+    return { success: false, error: 'TTS_API_UNAVAILABLE' };
+  }
+
+  // Stop any ongoing speech first
+  chrome.tts.stop();
+
+  return new Promise((resolve) => {
+    chrome.tts.speak(text, {
+      rate: payload.rate || 1.0,
+      pitch: 1.0,
+      lang: 'en-US',
+      onEvent: (event) => {
+        if (event.type === 'error') {
+          console.warn('TTS error event:', event.errorMessage);
+        }
+      }
+    }, () => {
+      if (chrome.runtime.lastError) {
+        resolve({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        resolve({ success: true, speaking: true });
+      }
+    });
+  });
+}
+
+/**
+ * Stops ongoing Chrome Text-to-Speech
+ */
+function handleStopTTS() {
+  if (chrome.tts) {
+    chrome.tts.stop();
+  }
+}
+
+/**
+ * Checks if Text-to-Speech is currently speaking
+ */
+function handleGetTTSStatus() {
+  return new Promise((resolve) => {
+    if (!chrome.tts) {
+      resolve({ isSpeaking: false });
+      return;
+    }
+    chrome.tts.isSpeaking((speaking) => {
+      resolve({ isSpeaking: Boolean(speaking) });
+    });
+  });
 }
 
 /**

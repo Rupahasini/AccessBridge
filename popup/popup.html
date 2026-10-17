@@ -3,138 +3,77 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AccessBridge Instrument Controller</title>
+  <title>AccessBridge</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="instrument-frame">
-    <!-- Top Instrument Telemetry -->
-    <header class="instrument-header">
-      <div class="brand-row">
-        <span class="instrument-tag">CALIBRATED FIELD INSTRUMENT</span>
-        <div class="status-beacon" id="status-beacon" role="status" aria-label="Engine status: Idle">
-          <span class="beacon-pip"></span>
-          <span class="beacon-label" id="beacon-text">IDLE</span>
-        </div>
-      </div>
-      <h1 class="instrument-title">AccessBridge</h1>
-      <p class="instrument-subtitle">WCAG 2.2 AA Real-Time DOM Remediation</p>
+  <div class="popup-frame">
+    <!-- Header -->
+    <header class="popup-header">
+      <h1 class="popup-title">AccessBridge</h1>
     </header>
 
-    <!-- Master Before / After Dial -->
-    <section class="master-control-section" aria-labelledby="master-control-heading">
-      <h2 id="master-control-heading" class="section-microtitle">REMEDIATION STATE</h2>
-      <div class="dual-rocker-wrapper">
-        <button type="button" 
-                id="master-toggle" 
-                class="rocker-switch" 
-                role="switch" 
-                aria-checked="false" 
-                aria-label="Toggle AccessBridge real-time DOM remediation">
-          <span class="rocker-option rocker-before" aria-hidden="true">BEFORE (ORIGINAL)</span>
-          <span class="rocker-slider" aria-hidden="true"></span>
-          <span class="rocker-option rocker-after" aria-hidden="true">AFTER (BRIDGED)</span>
-        </button>
-      </div>
-      <p class="rocker-caption" id="rocker-status-caption">Currently displaying unassisted webpage DOM.</p>
-    </section>
+    <main class="popup-main">
+      <!-- Row 1: Main On/Off Switch -->
+      <section class="popup-card" aria-label="Main site control">
+        <label class="switch-row" for="site-toggle">
+          <span class="switch-title" id="site-toggle-label">AccessBridge is ON for this site</span>
+          <span class="switch-container">
+            <input type="checkbox" 
+                   id="site-toggle" 
+                   class="power-switch-input" 
+                   role="switch" 
+                   checked 
+                   aria-checked="true"
+                   aria-labelledby="site-toggle-label">
+            <span class="power-switch-track" aria-hidden="true">
+              <span class="power-switch-thumb"></span>
+            </span>
+          </span>
+        </label>
+      </section>
 
-    <!-- Hero Readout -->
-    <section class="readout-section" aria-labelledby="readout-heading">
-      <h2 id="readout-heading" class="sr-only">Live Remediation Metrics</h2>
-      <div class="hero-meter">
-        <div class="numeric-display">
-          <span class="digit-counter" id="total-count" aria-live="polite">00</span>
-          <span class="delta-unit">NODES</span>
-        </div>
-        <p class="readout-desc" id="readout-subtext">ACCESSIBILITY BARRIERS BRIDGED</p>
-      </div>
-    </section>
+      <!-- Row 2: Fixes Summary -->
+      <section class="popup-card summary-card" id="summary-card" aria-live="polite">
+        <p class="summary-line" id="summary-line">Nothing to fix on this page</p>
+        <ul class="fixes-list" id="fixes-list" aria-label="Fixes on this page">
+          <li class="fix-line" id="fix-line-names" hidden>Added names to 0 buttons and images</li>
+          <li class="fix-line" id="fix-line-keyboard" hidden>Made 0 items usable with the keyboard</li>
+          <li class="fix-line" id="fix-line-text" hidden>Fixed 0 areas that cut off enlarged text</li>
+        </ul>
+      </section>
 
-    <!-- Tri-Category Metric Readout -->
-    <section class="telemetry-grid" aria-labelledby="telemetry-heading">
-      <h2 id="telemetry-heading" class="section-microtitle">SUBSYSTEM TELEMETRY</h2>
-
-      <div class="telemetry-row">
-        <div class="telemetry-meta">
-          <span class="category-index">01</span>
-          <div class="category-info">
-            <span class="category-name">Semantic & ARIA</span>
-            <span class="category-detail">Inferred names, alt-text, form labels</span>
+      <!-- Row 3: Highlight Fixes Toggle -->
+      <section class="popup-card" aria-label="Highlight fixes">
+        <label class="switch-row" for="toggle-highlights">
+          <div class="switch-text-group">
+            <span class="switch-title">Highlight fixes</span>
+            <span class="switch-helper">Outline what AccessBridge changed</span>
           </div>
-        </div>
-        <span class="category-tally" id="aria-count" aria-label="0 ARIA fixes applied">00</span>
-      </div>
+          <span class="switch-container">
+            <input type="checkbox" 
+                   id="toggle-highlights" 
+                   class="power-switch-input" 
+                   role="switch" 
+                   aria-checked="false"
+                   aria-label="Highlight fixes">
+            <span class="power-switch-track" aria-hidden="true">
+              <span class="power-switch-thumb"></span>
+            </span>
+          </span>
+        </label>
+      </section>
+    </main>
 
-      <div class="telemetry-row">
-        <div class="telemetry-meta">
-          <span class="category-index">02</span>
-          <div class="category-info">
-            <span class="category-name">Focus & Keyboard</span>
-            <span class="category-detail">Tabindex, Enter/Space, Skip link</span>
-          </div>
-        </div>
-        <span class="category-tally" id="focus-count" aria-label="0 focus fixes applied">00</span>
-      </div>
-
-      <div class="telemetry-row">
-        <div class="telemetry-meta">
-          <span class="category-index">03</span>
-          <div class="category-info">
-            <span class="category-name">Elasticity & Reflow</span>
-            <span class="category-detail">Fixed heights freed, rem units</span>
-          </div>
-        </div>
-        <span class="category-tally" id="layout-count" aria-label="0 layout fixes applied">00</span>
-      </div>
-    </section>
-
-    <!-- Auxiliary Control Switches -->
-    <section class="toggles-section" aria-labelledby="aux-heading">
-      <h2 id="aux-heading" class="section-microtitle">INSTRUMENT OPTIONS</h2>
-
-      <div class="toggle-control-row">
-        <div class="toggle-copy">
-          <label for="toggle-highlights" class="toggle-title">Visual Highlight Overlay</label>
-          <span class="toggle-sub">Outline repaired DOM elements on page</span>
-        </div>
-        <input type="checkbox" id="toggle-highlights" class="accessible-switch" role="switch">
-      </div>
-
-      <div class="toggle-control-row">
-        <div class="toggle-copy">
-          <label for="toggle-autofix" class="toggle-title">Auto-Bridge This Domain</label>
-          <span class="toggle-sub" id="domain-subtext">Always active for current host</span>
-        </div>
-        <input type="checkbox" id="toggle-autofix" class="accessible-switch" role="switch">
-      </div>
-
-      <!-- Gemini Multimodal Status Chip -->
-      <div class="ai-status-row" id="ai-banner">
-        <div class="ai-indicator-dot" id="ai-dot"></div>
-        <div class="ai-info">
-          <span class="ai-title" id="ai-status-text">Gemini Multimodal: Offline</span>
-          <span class="ai-caption" id="ai-detail">Using deterministic local heuristics</span>
-        </div>
-        <button type="button" id="btn-configure-key" class="btn-micro" aria-label="Configure Gemini API Key in options">Configure</button>
-      </div>
-    </section>
-
-    <!-- Action Strip -->
-    <footer class="instrument-footer">
-      <button type="button" id="btn-open-demo" class="btn-action btn-demo">
-        <span class="btn-icon" aria-hidden="true">↗</span>
-        <span>Open Test Lab</span>
-      </button>
-      <button type="button" id="btn-open-options" class="btn-action btn-settings">
-        <span>Settings & Keys</span>
-      </button>
+    <!-- Footer: Full Width More Settings Button -->
+    <footer class="popup-footer">
+      <button type="button" id="btn-more-settings" class="btn-more-settings">More settings</button>
     </footer>
 
-    <!-- Polite Live Screen Reader Region -->
+    <!-- Screen Reader Announcer -->
     <div id="popup-announcer" class="sr-only" aria-live="polite"></div>
   </div>
 
